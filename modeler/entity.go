@@ -118,6 +118,40 @@ func (c EntityInfo[ID, E]) GetCreateAt(e *E) time.Time {
 	return time.Time{}
 }
 
+var (
+	BaseAllFields = map[FIELD]string{
+		FIELD_ID:          "id",
+		FIELD_CREATE_AT:   "create_at",
+		FIELD_MODIFIED_AT: "modified_at",
+		FIELD_REMOVED:     "removed",
+		FIELD_VERSION:     "version",
+		FIELD_CREATE_BY:   "create_by",
+		FIELD_MODIFIED_BY: "modified_by",
+	}
+)
+
+func EntityInfoBuilder[ID comparable, E Model[ID]](
+	getter func(*E, FIELD) any,
+	setter func(*E, FIELD, any),
+	fields map[FIELD]string,
+) (e EntityInfo[ID, E]) {
+	e = EntityInfo[ID, E]{}
+	for field, s := range fields {
+		f := field
+		e[f] = FieldInfo[ID, E]{
+			Name:  s,
+			Field: f,
+			Getter: func(e *E) any {
+				return getter(e, f)
+			},
+			Setter: func(e *E, v any) {
+				setter(e, f, v)
+			},
+		}
+	}
+	return
+}
+
 const (
 	FIELD_ALL FIELD = iota - 1
 	FIELD_NONE
@@ -155,7 +189,12 @@ func MakeConfigurer(flags ...ConfigurerFlag) Configurer {
 
 type ConfigurerFlag int
 
+var (
+	ConfigurerAll = Configurer(0b00001111)
+)
+
 const (
+
 	// ConfigurerModifier flag that requires record who took action
 	ConfigurerModifier ConfigurerFlag = 1 << iota
 	// ConfigurerModified flag that requires manually recording update timestamp
@@ -188,7 +227,10 @@ type BaseSQLMaker[ID comparable, E Model[ID]] struct {
 	fields EntityInfo[ID, E]
 }
 
-func NewBaseSQLMaker[ID comparable, E Model[ID]](table string, config Configurer, fields EntityInfo[ID, E]) BaseSQLMaker[ID, E] {
+func NewBaseSQLMaker[ID comparable, E Model[ID]](table string,
+	config Configurer,
+	fields EntityInfo[ID, E],
+) BaseSQLMaker[ID, E] {
 	return BaseSQLMaker[ID, E]{
 		table:  table,
 		conf:   newConf(config),
@@ -378,7 +420,6 @@ func (s *BaseEntity[ID, E]) DoModify(f FIELD, v any) bool {
 func (s *BaseEntity[ID, E]) IsInvalid() bool {
 	return s.invalid
 }
-
 func (s *BaseEntity[ID, E]) Save() bool {
 	if s.invalid {
 		return false
@@ -516,7 +557,6 @@ func (s *BaseEntity[ID, E]) Drop() bool {
 	slog.With("drop", slog.String("query", q), slog.Any("parameter", m)).Error("drop entity", err)
 	return false
 }
-
 func (s *BaseEntity[ID, E]) Close(ctx context.Context) bool {
 	if len(s.modified) > 0 {
 		s.Save()
