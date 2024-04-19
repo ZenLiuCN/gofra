@@ -16,8 +16,9 @@ import (
 )
 
 var (
-	file string
-	conf *hocon.Config
+	handler *RotateFileHandler
+	file    string
+	conf    *hocon.Config
 )
 
 type RotateFileHandler struct {
@@ -59,25 +60,42 @@ func (s *RotateFileHandler) Close() error {
 func Initialize(confFile string) {
 	file = confFile
 	conf = hocon.LoadConfig(confFile)
+	checkLogger()
+}
+func checkLogger() {
+	if handler != nil {
+		_ = handler.Close()
+		slog.SetDefault(slog.Default())
+	}
 	logFile := conf.GetString("log.file", "")
 	c := NewConfig(conf)
+	opt := new(slog.HandlerOptions)
+	{
+		opt.AddSource = conf.GetBoolean("log.source", true)
+		lever := new(slog.Level)
+		if err := lever.UnmarshalText([]byte(conf.GetString("log.level", "info"))); err == nil {
+			opt.Level = lever
+		} else {
+			opt.Level = slog.LevelInfo
+		}
+
+	}
 	if logFile == "" {
-		log := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+		log := slog.New(slog.NewJSONHandler(os.Stdout, opt))
 		slog.SetDefault(log)
 	} else {
 		_ = os.MkdirAll(filepath.Dir(logFile), os.ModePerm)
 		f := fn.Panic1(os.OpenFile(logFile, os.O_CREATE|os.O_APPEND, os.ModePerm))
-		fh := &RotateFileHandler{
+		handler = &RotateFileHandler{
 			path:    logFile,
 			pattern: conf.GetString("log.pattern", "060102150405"),
 			file:    f,
 			limit:   c.GetByteSizeOr("log.size", big.NewInt(1024*1024*10)).Int64(),
 			lock:    sync.Mutex{},
 		}
-		log := slog.New(slog.NewJSONHandler(fh, nil))
+		log := slog.New(slog.NewJSONHandler(handler, opt))
 		slog.SetDefault(log)
 	}
-
 }
 
 type (
@@ -85,6 +103,8 @@ type (
 		fmt.Stringer
 		GetObject(path string) Config
 		GetObjects(path string) (r []Config)
+		GetStringMap(path string) map[string]Config
+
 		GetBoolean(path string, defaultVal ...bool) bool
 		GetByteSize(path string) *big.Int
 		GetByteSizeOr(path string, defaultVal ...*big.Int) *big.Int
@@ -114,9 +134,33 @@ type (
 func NewConfig(c *hocon.Config) Config {
 	return &config{c}
 }
+func NewConfigOfValue(c *ho.HoconValue) Config {
+	return &config{Config: hocon.NewConfigFromRoot(ho.NewHoconRoot(c))}
+}
+func (c config) GetStringMap(path string) map[string]Config {
+	if c.HasPath(path) {
+		n := c.GetNode(path)
+		if n.IsObject() {
+			o := n.GetObject()
+			m := make(map[string]Config, len(o.GetKeys()))
+			for _, s := range o.GetKeys() {
+				m[s] = NewConfigOfValue(o.GetKey(s))
+			}
+			return m
+		} else {
+			return nil
+		}
+	} else {
+		return nil
+	}
+}
 func (c config) GetObject(path string) Config {
-	return config{
-		c.GetConfig(path),
+	if c.HasPath(path) {
+		return config{
+			c.GetConfig(path),
+		}
+	} else {
+		return nil
 	}
 }
 func (c config) GetByteSizeOr(path string, defaultVal ...*big.Int) *big.Int {
@@ -129,6 +173,9 @@ func (c config) GetByteSizeOr(path string, defaultVal ...*big.Int) *big.Int {
 	}
 }
 func (c config) GetObjects(path string) (r []Config) {
+	if !c.HasPath(path) {
+		return
+	}
 	a := c.GetNode(path).GetArray()
 	for _, value := range a {
 		if value.IsObject() {
@@ -183,6 +230,7 @@ func GetConfig() Config {
 	return config{conf}
 }
 func ReloadConfigurer(otherFile string) Config {
+	defer checkLogger()
 	if otherFile != "" {
 		file = otherFile
 	}
@@ -198,6 +246,7 @@ func FlushConfigurer(data []byte) (c Config, success bool) {
 			success = false
 			c = ReloadConfigurer("")
 		}
+		checkLogger()
 	}()
 	fn.Panic(os.Rename(file, backupFile))
 	fn.Panic(os.WriteFile(file, data, os.ModePerm))

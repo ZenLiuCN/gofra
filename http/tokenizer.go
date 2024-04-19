@@ -9,8 +9,8 @@ var (
 	method jwt.SigningMethod
 )
 
-func init() {
-	ConfigJwt(conf.GetConfigurer())
+func JwtInitalize() {
+	ConfigJwt(conf.GetConfig())
 }
 func ConfigJwt(conf conf.Config) {
 	method = jwt.GetSigningMethod(conf.GetString("jwt.sign"))

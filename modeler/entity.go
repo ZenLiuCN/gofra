@@ -17,9 +17,9 @@ type Model[ID comparable] interface {
 	Model()
 }
 type Executor interface {
-	QueryOne(out any, sql string, args map[string]any) error
-	QueryMany(out any, sql string, args map[string]any) error
-	Execute(sql string, args map[string]any) (sql.Result, error)
+	QueryOne(ctx context.Context, out any, sql string, args map[string]any) error
+	QueryMany(ctx context.Context, out any, sql string, args map[string]any) error
+	Execute(ctx context.Context, sql string, args map[string]any) (sql.Result, error)
 	Close(ctx context.Context) bool
 }
 type SQLMaker interface {
@@ -29,12 +29,12 @@ type SQLMaker interface {
 	Drop() string
 }
 type Entity[E Model[ID], ID comparable] interface {
-	Save() bool             //update record
-	SaveBy(actor ID) bool   //update record
-	DeleteBy(actor ID) bool //soft delete record
-	Delete() bool           //soft delete record
-	Drop() bool             //drop record permanently
-	Refresh() bool
+	Save(ctx context.Context) bool               //update record
+	SaveBy(ctx context.Context, actor ID) bool   //update record
+	DeleteBy(ctx context.Context, actor ID) bool //soft delete record
+	Delete(ctx context.Context) bool             //soft delete record
+	Drop(ctx context.Context) bool               //drop record permanently
+	Refresh(ctx context.Context) bool
 	Close(ctx context.Context) bool
 }
 type FIELD int
@@ -391,17 +391,17 @@ func NewBaseEntity[ID comparable, E Model[ID]](
 		closer:   closer,
 	}
 }
-func (s *BaseEntity[ID, E]) Refresh() bool {
+func (s *BaseEntity[ID, E]) Refresh(ctx context.Context) bool {
 	if s.invalid {
 		return false
 	}
 	q := s.dml.Query()
 	m := map[string]any{s.fields.IdName(): s.fields[FIELD_ID].Getter(s.pointer)}
-	err := s.executor.QueryOne(s.pointer, q, m)
+	err := s.executor.QueryOne(ctx, s.pointer, q, m)
 	if err == nil {
 		return true
 	}
-	slog.With("refresh", slog.String("query", q), slog.Any("parameter", m)).Error("refresh entity", err)
+	slog.With("refresh", slog.String("query", q), slog.Any("parameter", m)).Error("refresh entity", "error", err)
 	return false
 }
 func (s *BaseEntity[ID, E]) DoModify(f FIELD, v any) bool {
@@ -420,7 +420,7 @@ func (s *BaseEntity[ID, E]) DoModify(f FIELD, v any) bool {
 func (s *BaseEntity[ID, E]) IsInvalid() bool {
 	return s.invalid
 }
-func (s *BaseEntity[ID, E]) Save() bool {
+func (s *BaseEntity[ID, E]) Save(ctx context.Context) bool {
 	if s.invalid {
 		return false
 	}
@@ -435,7 +435,7 @@ func (s *BaseEntity[ID, E]) Save() bool {
 	if s.conf.optimisticLocking {
 		s.fields.Entry(s.pointer, FIELD_VERSION, m)
 	}
-	r, err := s.executor.Execute(q, m)
+	r, err := s.executor.Execute(ctx, q, m)
 	if err == nil {
 		var n int64
 		if n, err = r.RowsAffected(); err == nil && n == 1 {
@@ -450,10 +450,10 @@ func (s *BaseEntity[ID, E]) Save() bool {
 		}
 
 	}
-	slog.With("save", slog.String("query", q), slog.Any("parameter", m)).Error("save modification", err)
+	slog.With("save", slog.String("query", q), slog.Any("parameter", m)).Error("save modification", "error", err)
 	return false
 }
-func (s *BaseEntity[ID, E]) SaveBy(actor ID) bool {
+func (s *BaseEntity[ID, E]) SaveBy(ctx context.Context, actor ID) bool {
 	if s.invalid {
 		return false
 	}
@@ -471,7 +471,7 @@ func (s *BaseEntity[ID, E]) SaveBy(actor ID) bool {
 	if s.conf.useModifiedBy {
 		m[s.fields.ModifiedByName()] = actor
 	}
-	r, err := s.executor.Execute(q, m)
+	r, err := s.executor.Execute(ctx, q, m)
 	if err == nil {
 		var n int64
 		if n, err = r.RowsAffected(); err == nil && n == 1 {
@@ -485,10 +485,10 @@ func (s *BaseEntity[ID, E]) SaveBy(actor ID) bool {
 		}
 
 	}
-	slog.With("save", slog.String("query", q), slog.Any("parameter", m)).Error("save modification", err)
+	slog.With("save", slog.String("query", q), slog.Any("parameter", m)).Error("save modification", "error", err)
 	return false
 }
-func (s *BaseEntity[ID, E]) Delete() bool {
+func (s *BaseEntity[ID, E]) Delete(ctx context.Context) bool {
 	if s.invalid {
 		return false
 	}
@@ -497,7 +497,7 @@ func (s *BaseEntity[ID, E]) Delete() bool {
 	if s.conf.optimisticLocking {
 		s.fields.Entry(s.pointer, FIELD_VERSION, m)
 	}
-	r, err := s.executor.Execute(q, m)
+	r, err := s.executor.Execute(ctx, q, m)
 	if err == nil {
 		var n int64
 		if n, err = r.RowsAffected(); err == nil && n == 1 {
@@ -508,10 +508,10 @@ func (s *BaseEntity[ID, E]) Delete() bool {
 			return false
 		}
 	}
-	slog.With("delete", slog.String("query", q), slog.Any("parameter", m)).Error("delete entity", err)
+	slog.With("delete", slog.String("query", q), slog.Any("parameter", m)).Error("delete entity", "error", err)
 	return false
 }
-func (s *BaseEntity[ID, E]) DeleteBy(actor ID) bool {
+func (s *BaseEntity[ID, E]) DeleteBy(ctx context.Context, actor ID) bool {
 	if s.invalid {
 		return false
 	}
@@ -523,7 +523,7 @@ func (s *BaseEntity[ID, E]) DeleteBy(actor ID) bool {
 	if s.conf.useModifiedBy {
 		m[s.fields.ModifiedByName()] = actor
 	}
-	r, err := s.executor.Execute(q, m)
+	r, err := s.executor.Execute(ctx, q, m)
 	if err == nil {
 		var n int64
 		if n, err = r.RowsAffected(); err == nil && n == 1 {
@@ -534,16 +534,16 @@ func (s *BaseEntity[ID, E]) DeleteBy(actor ID) bool {
 			return false
 		}
 	}
-	slog.With("delete", slog.String("query", q), slog.Any("parameter", m)).Error("delete entity", err)
+	slog.With("delete", slog.String("query", q), slog.Any("parameter", m)).Error("delete entity", "error", err)
 	return false
 }
-func (s *BaseEntity[ID, E]) Drop() bool {
+func (s *BaseEntity[ID, E]) Drop(ctx context.Context) bool {
 	if s.invalid {
 		return false
 	}
 	q := s.dml.Drop()
 	m := map[string]any{s.fields.IdName(): s.fields[FIELD_ID].Getter(s.pointer)}
-	r, err := s.executor.Execute(q, m)
+	r, err := s.executor.Execute(ctx, q, m)
 	if err == nil {
 		var n int64
 		if n, err = r.RowsAffected(); err == nil && n == 1 {
@@ -554,12 +554,12 @@ func (s *BaseEntity[ID, E]) Drop() bool {
 			return false
 		}
 	}
-	slog.With("drop", slog.String("query", q), slog.Any("parameter", m)).Error("drop entity", err)
+	slog.With("drop", slog.String("query", q), slog.Any("parameter", m)).Error("drop entity", "error", err)
 	return false
 }
 func (s *BaseEntity[ID, E]) Close(ctx context.Context) bool {
 	if len(s.modified) > 0 {
-		s.Save()
+		s.Save(ctx)
 	}
 	return s.closer(ctx)
 }

@@ -6,6 +6,8 @@ import (
 	"github.com/ZenLiuCN/goinfra/conf"
 	"github.com/ZenLiuCN/goinfra/telemetry/otlp"
 	"github.com/ZenLiuCN/goinfra/telemetry/prometheus"
+	"go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/trace"
 
 	"go.opentelemetry.io/otel"
 )
@@ -26,21 +28,21 @@ func SetupTelemetry(ctx context.Context, conf conf.Config) (shutdown func(contex
 	}
 	prop := NewPropagator(conf)
 	otel.SetTextMapPropagator(prop)
-	tracerProvider, err := otlp.NewTraceProvider(conf)
-	if err != nil {
+	var tracerProvider *trace.TracerProvider
+	if tracerProvider, err = otlp.NewTraceProvider(ctx, conf); err != nil {
 		handleErr(err)
 		return
+	} else {
+		shutdownFunc = append(shutdownFunc, tracerProvider.Shutdown)
+		otel.SetTracerProvider(tracerProvider)
 	}
-	shutdownFunc = append(shutdownFunc, tracerProvider.Shutdown)
-	otel.SetTracerProvider(tracerProvider)
-
-	// Set up meter provider.
-	meterProvider, err := prometheus.NewMeterProvider(conf)
-	if err != nil {
+	var meterProvider *metric.MeterProvider
+	if meterProvider, err = prometheus.NewMeterProvider(ctx, conf); err != nil {
 		handleErr(err)
 		return
+	} else {
+		shutdownFunc = append(shutdownFunc, meterProvider.Shutdown)
+		otel.SetMeterProvider(meterProvider)
 	}
-	shutdownFunc = append(shutdownFunc, meterProvider.Shutdown)
-	otel.SetMeterProvider(meterProvider)
 	return
 }

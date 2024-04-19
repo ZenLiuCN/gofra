@@ -5,7 +5,8 @@ import (
 	"context"
 	"github.com/ZenLiuCN/goinfra/conf"
 	"github.com/gorilla/mux"
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux"
+	"go.opentelemetry.io/otel"
 	"log"
 	"log/slog"
 	"net/http"
@@ -15,20 +16,25 @@ import (
 	"time"
 )
 
-type Configurer [1]*mux.Router
+type RouterConfigurer struct {
+	*mux.Router
+}
 
-func ConfigurerOf(r *mux.Router) Configurer {
-	return Configurer([1]*mux.Router{r})
+func RouterConfigurerOf(r *mux.Router) RouterConfigurer {
+	return RouterConfigurer{r}
 }
-func (c Configurer) Get() *mux.Router {
-	return c[0]
+func (c RouterConfigurer) Get() *mux.Router {
+	return c.Router
 }
-func (c Configurer) WithTelemetry(operation string, opts ...otelhttp.Option) Configurer {
-	c[0].Use(otelhttp.NewMiddleware(operation, opts...))
+
+// WithTelemetry tracer provider is injected, not need in opts
+func (c RouterConfigurer) WithTelemetry(service string, opts ...otelmux.Option) RouterConfigurer {
+	opts = append(opts, otelmux.WithTracerProvider(otel.GetTracerProvider()))
+	c.Use(otelmux.Middleware(service, opts...))
 	return c
 }
-func (c Configurer) WithCORS(cfg conf.Config) Configurer {
-	c[0].Use(mux.CORSMethodMiddleware(c[0]))
+func (c RouterConfigurer) WithCORS(cfg conf.Config) RouterConfigurer {
+	c.Use(mux.CORSMethodMiddleware(c.Router))
 	var h, o string
 	if cfg != nil {
 		headers := cfg.GetStringList("cors.headers")
@@ -69,7 +75,7 @@ func (c Configurer) WithCORS(cfg conf.Config) Configurer {
 		o = "*"
 		h = "*"
 	}
-	c[0].Use(func(next http.Handler) http.Handler {
+	c.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			if req.Method == http.MethodOptions {
 				w.Header().Set("Access-Control-Allow-Headers", h)
@@ -84,14 +90,14 @@ func (c Configurer) WithCORS(cfg conf.Config) Configurer {
 // WithSPA at root path
 // folder: the local directory contains all SPA files
 // index: the index file name
-func (c Configurer) WithSPA(folder, index string) Configurer {
-	c[0].PathPrefix("/").Handler(Spa([2]string{folder, index}))
+func (c RouterConfigurer) WithSPA(folder, index string) RouterConfigurer {
+	c.PathPrefix("/").Handler(Spa([2]string{folder, index}))
 	return c
 }
 
 // Launch see [StartServer]
-func (c Configurer) Launch(cfg conf.Config, closerConsumer func(func())) {
-	StartServer(c[0], cfg, closerConsumer)
+func (c RouterConfigurer) Launch(cfg conf.Config, closerConsumer func(func())) {
+	StartServer(c.Router, cfg, closerConsumer)
 }
 
 /*
@@ -135,9 +141,9 @@ func StartServer(r *mux.Router, c conf.Config, closerConsumer func(func())) {
 			close(shutdown)
 		}
 	}()
-	slog.Info("http server listen", server.Addr)
+	slog.Info("http server listen", "address", server.Addr)
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		slog.Error("shutdown http server", err)
+		slog.Error("shutdown http server", "error", err)
 	}
 	<-shutdown
 }
