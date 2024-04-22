@@ -13,13 +13,14 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 )
 
 func main() {
 	cli.VersionFlag = &cli.BoolFlag{
 		Name:    "version",
-		Usage:   "show cli version",
+		Usage:   "show version",
 		Aliases: []string{"v"},
 	}
 	err := (&cli.App{
@@ -149,11 +150,11 @@ func (g *Generator) addPackage(pkg *packages.Package) {
 }
 
 func (g *Generator) lookupTypes() {
-
 	var f *File
 	for _, f = range g.files {
 		if f.file != nil {
 			ast.Inspect(f.file, f.genDecl)
+			f.parse(g.types)
 		}
 	}
 }
@@ -181,6 +182,7 @@ func (f *File) genDecl(node ast.Node) bool {
 		if ts, ok = spec.(*ast.TypeSpec); ok {
 			typeName = ts.Name.Name
 			f.types = append(f.types, &Type{
+				pkg:      f.pkg,
 				typeName: typeName,
 				fields:   nil,
 				file:     f,
@@ -191,12 +193,28 @@ func (f *File) genDecl(node ast.Node) bool {
 	return false
 }
 
+func (f *File) parse(types []string) {
+	slices.Sort(types)
+	var t *Type
+	for _, t = range f.types {
+		if slices.Contains(types, t.typeName) {
+			t.parse()
+		}
+	}
+}
+
 type Type struct {
+	pkg      *Package
 	typeName string
 	fields   []Field
 	file     *File
 	spec     *ast.TypeSpec
 }
+
+func (t *Type) parse() {
+
+}
+
 type Field struct {
 	Name   string
 	Column string
