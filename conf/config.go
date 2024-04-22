@@ -78,7 +78,6 @@ func checkLogger() {
 		} else {
 			opt.Level = slog.LevelInfo
 		}
-
 	}
 	if logFile == "" {
 		log := slog.New(slog.NewJSONHandler(os.Stdout, opt))
