@@ -96,8 +96,8 @@ func (c RouterConfigurer) WithSPA(folder, index string) RouterConfigurer {
 }
 
 // Launch see [StartServer]
-func (c RouterConfigurer) Launch(cfg conf.Config, closerConsumer func(func())) {
-	StartServer(c.Router, cfg, closerConsumer)
+func (c RouterConfigurer) Launch(cfg conf.Config, configure func(server *http.Server), closerConsumer func(func())) {
+	StartServer(c.Router, cfg, configure, closerConsumer)
 }
 
 /*
@@ -113,7 +113,7 @@ HOCON sample:
 	keepAlive: false
 	}
 */
-func StartServer(r *mux.Router, c conf.Config, closerConsumer func(func())) {
+func StartServer(r *mux.Router, c conf.Config, configure func(server *http.Server), closerConsumer func(func())) {
 	server := new(http.Server)
 	server.Addr = conf.OrElse("address", "0.0.0.0:8080", c, c.GetString)
 	server.Handler = r
@@ -122,6 +122,9 @@ func StartServer(r *mux.Router, c conf.Config, closerConsumer func(func())) {
 	server.IdleTimeout = conf.OrElse("idleTimeout", time.Second*60, c, c.GetTimeDuration)
 	server.ErrorLog = log.Default()
 	server.SetKeepAlivesEnabled(c.GetBoolean("keepAlive", false))
+	if configure != nil {
+		configure(server)
+	}
 	shutdown := make(chan struct{})
 	ch := make(chan os.Signal, 1)
 	closer := func() {
