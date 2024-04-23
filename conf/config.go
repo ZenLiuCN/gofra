@@ -83,7 +83,7 @@ func checkLogger() {
 		log := slog.New(slog.NewJSONHandler(os.Stdout, opt))
 		slog.SetDefault(log)
 	} else {
-		_ = os.MkdirAll(filepath.Dir(logFile), os.ModePerm)
+		fn.Panic(os.MkdirAll(filepath.Dir(logFile), os.ModePerm))
 		f := fn.Panic1(os.OpenFile(logFile, os.O_CREATE|os.O_APPEND, os.ModePerm))
 		handler = &RotateFileHandler{
 			path:    logFile,
@@ -240,7 +240,7 @@ func FlushConfigurer(data []byte) (c Config, success bool) {
 	backupFile := fmt.Sprintf("%s.%d", file, time.Now().UnixMilli())
 	defer func() {
 		if r := recover(); r != nil {
-			slog.With(slog.String("config", hex.EncodeToString(data))).Error("flush config fail", r)
+			slog.With(slog.String("config", hex.EncodeToString(data))).Error("flush config fail", "error", r)
 			fn.Panic(os.Rename(backupFile, file))
 			success = false
 			c = ReloadConfigurer("")
