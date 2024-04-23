@@ -18,7 +18,6 @@ type Model[ID comparable] interface {
 }
 type Executor interface {
 	QueryOne(ctx context.Context, out any, sql string, args map[string]any) error
-	QueryMany(ctx context.Context, out any, sql string, args map[string]any) error
 	Execute(ctx context.Context, sql string, args map[string]any) (sql.Result, error)
 	Close(ctx context.Context) bool
 }
@@ -404,7 +403,7 @@ func (s *BaseEntity[ID, E]) Refresh(ctx context.Context) bool {
 	slog.With("refresh", slog.String("query", q), slog.Any("parameter", m)).Error("refresh entity", "error", err)
 	return false
 }
-func (s *BaseEntity[ID, E]) DoModify(f FIELD, v any) bool {
+func (s *BaseEntity[ID, E]) DoWrite(f FIELD, v any) bool {
 	if s.invalid {
 		return false
 	}
@@ -416,6 +415,15 @@ func (s *BaseEntity[ID, E]) DoModify(f FIELD, v any) bool {
 	}
 	s.modified[f] = v
 	return false
+}
+func (s *BaseEntity[ID, E]) DoRead(f FIELD) any {
+	if v, ok := s.modified[f]; ok {
+		return v
+	}
+	return s.fields.Get(s.pointer, f)
+}
+func (s *BaseEntity[ID, E]) IsModified() bool {
+	return len(s.modified) > 0
 }
 func (s *BaseEntity[ID, E]) IsInvalid() bool {
 	return s.invalid

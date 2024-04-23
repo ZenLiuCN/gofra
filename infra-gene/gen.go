@@ -119,13 +119,13 @@ type Generator struct {
 	access bool
 	index  modeler.FIELD
 	Context
-	declEntities    []*Entity
-	out             string
-	seq             modeler.FIELD
-	enumWriter      *Writer
-	initWriter      *Writer
-	variableWriter  *Writer
-	factoriesWriter *Writer
+	declEntities   []*Entity
+	out            string
+	seq            modeler.FIELD
+	enumWriter     *Writer
+	initWriter     *Writer
+	variableWriter *Writer
+	accessorWriter *Writer
 }
 
 func (g *Generator) generate() {
@@ -159,7 +159,7 @@ const (
 `)
 	g.initWriter = NewWriter().F("\nfunc init(){\n")
 	g.variableWriter = NewWriter().F("\nvar (\n")
-	g.factoriesWriter = NewWriter()
+	g.accessorWriter = NewWriter()
 	ent := NewWriter().Import("context")
 	for _, entity := range g.declEntities {
 		entity.write(g)
@@ -185,6 +185,10 @@ func new%[1]sEntity(tab string,configurer modeler.Configurer, s %[1]s,executor m
 	return
 }
 `, entity.Name, entity.IdType)
+
+	}
+	if g.access {
+		ent.Append(g.accessorWriter)
 	}
 	g.enumWriter.F(")\n").
 		Append(g.variableWriter.F(")\n")).
@@ -433,8 +437,17 @@ if x,ok:=v.(%s);ok{
 	panic(fmt.Errorf("bad field %%T type of %%d", v, f))
 }`, field.TypeName, field.Name)
 			}
+			g.accessorWriter.F(`
+	func (c *%[1]sEntity) Get%[2]s()%[3]s{
+		return c.DoRead(%[1]s%[2]s).(%[3]s)
+	}
+	func (c *%[1]sEntity) Set%[2]s(v %[3]s) bool{
+		return c.DoWrite(%[1]s%[2]s,v)
+	}
+`, e.Name, field.Name, field.TypeName)
 			g.seq += 1
 		}
+
 	}
 	if e.IdType == "" {
 		panic(fmt.Errorf("not found IdType for %s", e.Name))
