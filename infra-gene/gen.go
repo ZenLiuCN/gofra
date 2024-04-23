@@ -35,6 +35,11 @@ func main() {
 				Required: true,
 				Aliases:  []string{"t"},
 			},
+			&cli.BoolFlag{
+				Name:    "debug",
+				Usage:   "debug generator",
+				Aliases: []string{"d"},
+			},
 			&cli.StringSliceFlag{
 				Name:     "tags",
 				Usage:    "tags to apply",
@@ -85,7 +90,9 @@ func main() {
 				g.access = c.Bool("accessor")
 				g.index = modeler.FIELD(c.Int("enum"))
 				g.out = c.String("out")
-				g.Logf = log.Printf
+				if c.Bool("debug") {
+					g.Logf = log.Printf
+				}
 			}
 			g.generate()
 			return nil
