@@ -200,8 +200,8 @@ import (
 	out.Append(g.enumWriter)
 	src, err := format.Source(out.buf.Bytes())
 	if err != nil {
-		log.Printf("warning: invalid generated: %s", err)
-		log.Printf("warning: compile the package to analyze the error")
+		g.Printf("warning: invalid generated: %s", err)
+		g.Printf("warning: compile the package to analyze the error")
 		fn.Panic(os.WriteFile(g.out, out.buf.Bytes(), os.ModePerm))
 	} else {
 		fn.Panic(os.WriteFile(g.out, src, os.ModePerm))
