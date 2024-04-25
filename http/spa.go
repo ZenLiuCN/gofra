@@ -1,6 +1,8 @@
 package http
 
 import (
+	"github.com/ZenLiuCN/goinfra/telemetry"
+	"go.opentelemetry.io/otel/attribute"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -10,6 +12,16 @@ import (
 type Spa [2]string
 
 func (h Spa) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if t := telemetry.ByContext(r.Context()); t != nil {
+		cx, span := t.StartSpanWith("spa", r.Context(), attribute.String("folder", h[0]), attribute.String("index", h[1]))
+		defer func() {
+			defer span.End()
+			if r, ok := t.HandleRecover(recover()); ok {
+				panic(r)
+			}
+		}()
+		r = r.WithContext(cx)
+	}
 	path := filepath.Join(h[0], r.URL.Path)
 	fi, err := os.Stat(path)
 	if os.IsNotExist(err) || fi.IsDir() {

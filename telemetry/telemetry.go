@@ -12,6 +12,13 @@ import (
 	"go.opentelemetry.io/otel"
 )
 
+var (
+	have bool
+)
+
+func UsingTelemetry() bool {
+	return have
+}
 func SetupTelemetry(ctx context.Context, conf conf.Config) (shutdown func(context.Context) error, err error) {
 	var shutdownFunc []func(context.Context) error
 
@@ -44,5 +51,6 @@ func SetupTelemetry(ctx context.Context, conf conf.Config) (shutdown func(contex
 		shutdownFunc = append(shutdownFunc, meterProvider.Shutdown)
 		otel.SetMeterProvider(meterProvider)
 	}
+	have = true
 	return
 }
