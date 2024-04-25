@@ -5,9 +5,12 @@ import (
 	"crypto/subtle"
 	"encoding/base64"
 	"fmt"
+	"github.com/pquerna/otp"
+	"github.com/pquerna/otp/totp"
 	"golang.org/x/crypto/argon2"
 	"golang.org/x/crypto/bcrypt"
 	"strings"
+	"time"
 )
 
 type (
@@ -125,3 +128,29 @@ var (
 	Argon2id SecretCrypto = argon2Crypto{}
 	BCrypt   SecretCrypto = bcryptCrypto{}
 )
+
+func Validate(raw, hashed string) bool {
+	if strings.HasPrefix(hashed, "$a2id$") {
+		return Argon2id.Validate(raw, hashed)
+	} else {
+		return BCrypt.Validate(raw, hashed)
+	}
+}
+
+func TOTP(i, code string) bool {
+	if strings.HasPrefix(i, "totp://") {
+		if k, err := otp.NewKeyFromURL(i); err != nil {
+			return totp.Validate(code, i)
+		} else if v, err := totp.ValidateCustom(code, k.Secret(), time.Now(), totp.ValidateOpts{
+			Period:    uint(k.Period()),
+			Skew:      1.,
+			Digits:    k.Digits(),
+			Algorithm: k.Algorithm(),
+		}); err != nil {
+			return false
+		} else {
+			return v
+		}
+	}
+	return totp.Validate(code, i)
+}
