@@ -143,15 +143,24 @@ func (c *TTL[K, V]) HouseKeeping() bool {
 	return c.stop != nil
 }
 
-func (c *TTL[K, V]) Close() {
+func (c *TTL[K, V]) StopKeeping() {
 	if c.stop == nil {
 		return
 	}
 	c.stop <- struct{}{}
 
 }
-
-func (c *TTL[K, V]) Keeping() {
+func (c *TTL[K, V]) Purify() {
+	c.kv.Range(func(key, value any) bool {
+		item := value.(*Entry[K, V])
+		item.expire -= c.tick
+		if item.expire <= 0 {
+			c.kv.Delete(key)
+		}
+		return true
+	})
+}
+func (c *TTL[K, V]) StartKeeping() {
 	if c.stop != nil {
 		return
 	} else {
@@ -163,14 +172,7 @@ func (c *TTL[K, V]) Keeping() {
 		for {
 			select {
 			case <-ticker.C:
-				c.kv.Range(func(key, value any) bool {
-					item := value.(*Entry[K, V])
-					item.expire -= c.tick
-					if item.expire <= 0 {
-						c.kv.Delete(key)
-					}
-					return true
-				})
+				c.Purify()
 			case <-c.stop:
 				close(c.stop)
 				c.stop = nil
@@ -190,9 +192,10 @@ type Cache[K comparable, V any] interface {
 	Put(k K, v V)                       //put value with default ttl
 	PutTTL(k K, v V, ttl time.Duration) // put value with specified ttl
 	Get(k K) (v V, ok bool)             //read a value by key
+	Purify()                            //Purify entries
 	HouseKeeping() bool                 // does housekeeping running
-	Close()                             //close housekeeping
-	Keeping()                           //start housekeeping
+	StopKeeping()                       //close housekeeping
+	StartKeeping()                      //start housekeeping
 }
 type cache[K comparable, V any] struct {
 	empty V
@@ -202,7 +205,7 @@ type cache[K comparable, V any] struct {
 	timeToLive time.Duration
 	ttl        int64
 	unit       MeasureUnit
-	onAccess   func(*Entry[K, V], func(time.Time) int64)
+	onAccess   func(*Entry[K, V]) //!! change the entry when access
 }
 
 func (c *cache[K, V]) TimeToLive() time.Duration {
@@ -257,7 +260,7 @@ func (c *cache[K, V]) Get(k K) (v V, ok bool) {
 		c.lru.Accessed(e.key)
 	}
 	if c.onAccess != nil {
-		c.onAccess(e, c.unit.Compute)
+		c.onAccess(e)
 		if e.expire <= 0 {
 			c.removeEntry(e.key)
 			if c.lru != nil {
@@ -272,22 +275,23 @@ func (c *cache[K, V]) Get(k K) (v V, ok bool) {
 
 type Option = func(*conf)
 
+// WithMaximize limit the maximum entries in Cache. also enable LRU inside Cache.
 func WithMaximize(n uint32) Option {
 	return func(c *conf) {
 		c.max = int(n)
 	}
 }
+
+// WithExpiredAfterAccess will change the entry expire time to specified duration after the access time
 func WithExpiredAfterAccess(t time.Duration) Option {
 	return func(c *conf) {
-		c.onAccess = func() time.Time {
-			return time.Now().Add(t)
-		}
+		c.onAccess = t
 	}
 }
 
 type conf struct {
 	max      int
-	onAccess func() time.Time
+	onAccess time.Duration
 }
 
 func NewCache[K comparable, V any](
@@ -318,9 +322,10 @@ func NewCache[K comparable, V any](
 		}
 		cc.limit = c.max
 	}
-	if c.onAccess != nil {
-		cc.onAccess = func(e *Entry[K, V], f func(time.Time) int64) {
-			e.expire = f(c.onAccess())
+	if c.onAccess != 0 {
+		t := unit.ComputeTTL(c.onAccess)
+		cc.onAccess = func(e *Entry[K, V]) {
+			e.expire = t
 		}
 	}
 	cc.timeToLive = ttl
