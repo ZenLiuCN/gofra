@@ -18,7 +18,7 @@ const (
 )
 const ContextKey = "$telemetry"
 
-func TelemetryFromContext(ctx context.Context) (r Telemetry) {
+func FromContext(ctx context.Context) (r Telemetry) {
 	if ctx == nil {
 		return nil
 	}
@@ -28,22 +28,37 @@ func TelemetryFromContext(ctx context.Context) (r Telemetry) {
 	}
 	return r
 }
+func ByContext(ctx context.Context, opts ...trace.SpanStartOption) (r Telemetry) {
+	if ctx == nil {
+		return nil
+	}
+	r, ok := ctx.Value(ContextKey).(Telemetry)
+	if !ok {
+		return NewTelemetry("", opts...)
+	}
+	return r
+}
 
 type Telemetry interface {
 	Scope() string
 	HandleError(err error)
 
-	/*HandleRecover returns the recover value and if there is failure
-	A sample usage like:
-		defer func() {
-			if r, ok := tel.HandleRecover(recover()); ok {
-				panic(r)
-			}
-		}()
+	/*
+		HandleRecover returns the recover value and if there is failure
+		A sample usage like:
+			defer func() {
+				if r, ok := tel.HandleRecover(recover()); ok {
+					panic(r)
+				}
+			}()
 	*/
 	HandleRecover(rec any) (any, bool)
+	//StartSpan if ctx is nil then the returns are nil
 	StartSpan(name string, ctx context.Context) (context.Context, trace.Span)
+	//StartSpanWith if ctx is nil then the returns are nil
 	StartSpanWith(name string, ctx context.Context, attrs ...attribute.KeyValue) (context.Context, trace.Span)
+
+	SetContext(ctx context.Context) context.Context
 }
 type telemetry struct {
 	spanStartOption []trace.SpanStartOption
@@ -54,9 +69,15 @@ type telemetry struct {
 }
 
 func (t *telemetry) StartSpan(name string, ctx context.Context) (context.Context, trace.Span) {
+	if ctx == nil {
+		return ctx, nil
+	}
 	return t.tracer.Start(ctx, name, t.spanStartOption...)
 }
 func (t *telemetry) StartSpanWith(name string, ctx context.Context, attrs ...attribute.KeyValue) (cx context.Context, sp trace.Span) {
+	if ctx == nil {
+		return ctx, nil
+	}
 	cx, sp = t.tracer.Start(ctx, name, t.spanStartOption...)
 	if len(attrs) > 0 {
 		sp.SetAttributes(attrs...)
@@ -83,12 +104,20 @@ func (t *telemetry) HandleRecover(rec any) (any, bool) {
 		return r, true
 	}
 }
-func NewTelemetry(scope string) Telemetry {
+
+func (t *telemetry) SetContext(ctx context.Context) context.Context {
+	if ctx == nil {
+		return nil
+	}
+	return context.WithValue(ctx, ContextKey, t)
+}
+func NewTelemetry(scope string, opts ...trace.SpanStartOption) Telemetry {
 	return &telemetry{
-		scope:      scope,
-		propagator: otel.GetTextMapPropagator(),
-		meter:      otel.GetMeterProvider().Meter(scope, metric.WithInstrumentationVersion(Version)),
-		tracer:     otel.GetTracerProvider().Tracer(scope, trace.WithInstrumentationVersion(Version)),
+		scope:           scope,
+		spanStartOption: opts,
+		propagator:      otel.GetTextMapPropagator(),
+		meter:           otel.GetMeterProvider().Meter(scope, metric.WithInstrumentationVersion(Version)),
+		tracer:          otel.GetTracerProvider().Tracer(scope, trace.WithInstrumentationVersion(Version)),
 	}
 }
 
@@ -96,19 +125,19 @@ type ServiceFunc func(ctx context.Context)
 
 func Instrument(name string, service ServiceFunc) ServiceFunc {
 	return func(ctx context.Context) {
-		tel := TelemetryFromContext(ctx)
-		if tel == nil {
-			tel = NewTelemetry(name)
-			ctx = context.WithValue(ctx, ContextKey, tel)
+		if tel := ByContext(ctx); tel != nil {
+			cx, span := tel.StartSpan(name, ctx)
+			defer func() {
+				if r, ok := tel.HandleRecover(recover()); ok {
+					panic(r)
+				}
+			}()
+			defer span.End()
+			service(cx)
+		} else {
+			service(ctx)
 		}
-		ctx, span := tel.StartSpan(name, ctx)
-		defer span.End()
-		defer func() {
-			if r, ok := tel.HandleRecover(recover()); ok {
-				panic(r)
-			}
-		}()
-		service(ctx)
+
 	}
 }
 
