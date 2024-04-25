@@ -86,6 +86,16 @@ func (l *LRU[K]) Freshest() K {
 	return e.Value.(K)
 }
 
+func (l *LRU[K]) Clear() *LRU[K] {
+	if l.ll == nil {
+		l.ll = list.New()
+	} else {
+		l.ll.Init()
+	}
+	l.m = make(map[K]*list.Element)
+	return l
+}
+
 // endregion
 
 //region Entry
@@ -192,6 +202,8 @@ type Cache[K comparable, V any] interface {
 	Put(k K, v V)                       //put value with default ttl
 	PutTTL(k K, v V, ttl time.Duration) // put value with specified ttl
 	Get(k K) (v V, ok bool)             //read a value by key
+	Invalidate(k K)                     //remove entry by key
+	InvalidateAll()                     //remove all entries
 	Purify()                            //Purify entries
 	HouseKeeping() bool                 // does housekeeping running
 	StopKeeping()                       //close housekeeping
@@ -208,6 +220,21 @@ type cache[K comparable, V any] struct {
 	onAccess   func(*Entry[K, V]) //!! change the entry when access
 }
 
+func (c *cache[K, V]) Invalidate(k K) {
+	_, ok := c.load(k)
+	if ok {
+		c.removeEntry(k)
+		if c.lru != nil {
+			c.lru.Remove(k)
+		}
+	}
+}
+func (c *cache[K, V]) InvalidateAll() {
+	c.clear()
+	if c.lru != nil {
+		c.lru.Clear()
+	}
+}
 func (c *cache[K, V]) TimeToLive() time.Duration {
 	return c.timeToLive
 }
@@ -315,11 +342,9 @@ func NewCache[K comparable, V any](
 		kv:   sync.Map{},
 	}
 	if c.max > 0 {
-		cc.lru = &LRU[K]{
+		cc.lru = (&LRU[K]{
 			emptyKey: emptyKey,
-			ll:       list.New(),
-			m:        make(map[K]*list.Element),
-		}
+		}).Clear()
 		cc.limit = c.max
 	}
 	if c.onAccess != 0 {
