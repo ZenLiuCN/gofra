@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 )
 
 func main() {
@@ -334,8 +335,7 @@ func (e *Entity) write(g *Generator) {
 	getter := NewWriter().
 		Import("github.com/ZenLiuCN/gofra/modeler").
 		Import("fmt").
-		Import("time").
-		Import("database/sql")
+		Import("time")
 	setter := NewWriter()
 	naming := NewWriter()
 	getter.F(`
@@ -429,6 +429,17 @@ case modeler.FIELD_MODIFIED_BY:
 			field.Index = modeler.FIELD_MODIFIED_BY
 		default:
 			field.Index = g.seq
+			if strings.ContainsRune(field.TypeName, '.') {
+				if field.VarField != nil {
+					g.enumWriter.Import(field.VarField.Pkg().Path())
+				} else if field.SelectorType != nil {
+					sel := e.pkg.Pkg.TypesInfo.Types[field.SelectorType]
+					if sel.IsType() {
+						g.enumWriter.Import(sel.Type.(*types.Named).Obj().Pkg().Path())
+					}
+				}
+
+			}
 			g.enumWriter.F(`
 //%[1]s%[2]s generate for %[1]s.%[2]s <%[4]s::%[5]s>
 %[1]s%[2]s modeler.FIELD = %[3]d
