@@ -50,7 +50,7 @@ func UseErr%[1]d%[2]d(fn func(context.Context) error, name string, opts ...trace
 					case error:
 						err = x
 					case string:
-						err=fmt.Errorf("%%s",x)
+						err=errors.New(x)
 					default:
 						err=fmt.Errorf("%%v",x)
 					}
@@ -110,7 +110,7 @@ func UseErr%[1]d%[2]d[%[3]s any](fn func(context.Context,%[3]s) error, name stri
 					case error:
 						err = x
 					case string:
-						err=fmt.Errorf("%%s",x)
+						err=errors.New(x)
 					default:
 						err=fmt.Errorf("%%v",x)
 					}
@@ -171,7 +171,7 @@ func UseErr%[1]d%[2]d[%[3]s any](fn func(context.Context)(%[3]s,error), name str
 					case error:
 						err = x
 					case string:
-						err=fmt.Errorf("%%s",x)
+						err=errors.New(x)
 					default:
 						err=fmt.Errorf("%%v",x)
 					}
@@ -245,7 +245,7 @@ func UseErr%[1]d%[2]d[%[3]s,%[6]s any](fn func(context.Context,%[3]s)(%[6]s,erro
 					case error:
 						err = x
 					case string:
-						err=fmt.Errorf("%%s",x)
+						err=errors.New(x)
 					default:
 						err=fmt.Errorf("%%v",x)
 					}

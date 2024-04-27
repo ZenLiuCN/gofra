@@ -2,8 +2,8 @@ package prometheus
 
 import (
 	"context"
-	"github.com/ZenLiuCN/goinfra/conf"
-	"github.com/ZenLiuCN/goinfra/telemetry/common"
+	"github.com/ZenLiuCN/gofra/conf"
+	"github.com/ZenLiuCN/gofra/telemetry/common"
 	"go.opentelemetry.io/otel/exporters/prometheus"
 	"go.opentelemetry.io/otel/sdk/metric"
 )

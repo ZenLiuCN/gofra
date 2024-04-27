@@ -1,7 +1,7 @@
 package http
 
 import (
-	"github.com/ZenLiuCN/goinfra/telemetry"
+	"github.com/ZenLiuCN/gofra/telemetry"
 	"go.opentelemetry.io/otel/attribute"
 	"net/http"
 	"os"

@@ -1,7 +1,7 @@
 package telemetry
 
 import (
-	"github.com/ZenLiuCN/goinfra/conf"
+	"github.com/ZenLiuCN/gofra/conf"
 	"go.opentelemetry.io/otel/propagation"
 )
 

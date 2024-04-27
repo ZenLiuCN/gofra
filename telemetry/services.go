@@ -3,7 +3,7 @@ package telemetry
 import (
 	"context"
 	"fmt"
-	"github.com/ZenLiuCN/goinfra/conf"
+	"github.com/ZenLiuCN/gofra/conf"
 	rt "go.opentelemetry.io/contrib/instrumentation/runtime"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -52,11 +52,10 @@ type Telemetry interface {
 				}
 			}()
 	*/
-	HandleRecover(rec any) (any, bool)
+	HandleRecover(rec any) (failure any, failed bool)
+
 	//StartSpan if ctx is nil then the returns are nil
-	StartSpan(name string, ctx context.Context) (context.Context, trace.Span)
-	//StartSpanWith if ctx is nil then the returns are nil
-	StartSpanWith(name string, ctx context.Context, attrs ...attribute.KeyValue) (context.Context, trace.Span)
+	StartSpan(name string, ctx context.Context, attrs ...attribute.KeyValue) (context.Context, trace.Span)
 
 	SetContext(ctx context.Context) context.Context
 }
@@ -68,13 +67,7 @@ type telemetry struct {
 	tracer          trace.Tracer
 }
 
-func (t *telemetry) StartSpan(name string, ctx context.Context) (context.Context, trace.Span) {
-	if ctx == nil {
-		return ctx, nil
-	}
-	return t.tracer.Start(ctx, name, t.spanStartOption...)
-}
-func (t *telemetry) StartSpanWith(name string, ctx context.Context, attrs ...attribute.KeyValue) (cx context.Context, sp trace.Span) {
+func (t *telemetry) StartSpan(name string, ctx context.Context, attrs ...attribute.KeyValue) (cx context.Context, sp trace.Span) {
 	if ctx == nil {
 		return ctx, nil
 	}

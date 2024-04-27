@@ -3,7 +3,7 @@ package http
 import (
 	"bytes"
 	"context"
-	"github.com/ZenLiuCN/goinfra/conf"
+	"github.com/ZenLiuCN/gofra/conf"
 	"github.com/gorilla/mux"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux"
 	"go.opentelemetry.io/otel"

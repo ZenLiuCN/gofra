@@ -3,9 +3,9 @@ package telemetry
 import (
 	"context"
 	"errors"
-	"github.com/ZenLiuCN/goinfra/conf"
-	"github.com/ZenLiuCN/goinfra/telemetry/otlp"
-	"github.com/ZenLiuCN/goinfra/telemetry/prometheus"
+	"github.com/ZenLiuCN/gofra/conf"
+	"github.com/ZenLiuCN/gofra/telemetry/otlp"
+	"github.com/ZenLiuCN/gofra/telemetry/prometheus"
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/trace"
 

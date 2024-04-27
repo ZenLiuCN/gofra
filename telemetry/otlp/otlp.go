@@ -2,8 +2,8 @@ package otlp
 
 import (
 	"context"
-	"github.com/ZenLiuCN/goinfra/conf"
-	"github.com/ZenLiuCN/goinfra/telemetry/common"
+	"github.com/ZenLiuCN/gofra/conf"
+	"github.com/ZenLiuCN/gofra/telemetry/common"
 	otlp "go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/sdk/trace"
 	"log/slog"

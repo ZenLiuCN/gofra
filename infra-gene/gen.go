@@ -4,7 +4,7 @@ package main
 import (
 	"fmt"
 	"github.com/ZenLiuCN/fn"
-	"github.com/ZenLiuCN/goinfra/modeler"
+	"github.com/ZenLiuCN/gofra/modeler"
 	"github.com/urfave/cli/v2"
 	"go/ast"
 	"go/format"
@@ -322,7 +322,7 @@ func (e *Entity) process() {
 
 func (e *Entity) write(g *Generator) {
 
-	getter := NewWriter().Import("github.com/ZenLiuCN/goinfra/modeler").Import("fmt").Import("time").Import("database/sql")
+	getter := NewWriter().Import("github.com/ZenLiuCN/gofra/modeler").Import("fmt").Import("time").Import("database/sql")
 	setter := NewWriter()
 	naming := NewWriter()
 	getter.F(`

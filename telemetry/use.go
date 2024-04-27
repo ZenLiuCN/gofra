@@ -2,6 +2,7 @@ package telemetry
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -35,7 +36,7 @@ func UseErr00(fn func(context.Context) error, name string, opts ...trace.SpanSta
 					case error:
 						err = x
 					case string:
-						err = fmt.Errorf("%s", x)
+						err = errors.New(x)
 					default:
 						err = fmt.Errorf("%v", x)
 					}

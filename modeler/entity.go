@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"github.com/ZenLiuCN/fn"
-	"github.com/ZenLiuCN/goinfra/utils"
+	"github.com/ZenLiuCN/gofra/utils"
 	"log/slog"
 	"time"
 )

@@ -1,7 +1,7 @@
 package http
 
 import (
-	"github.com/ZenLiuCN/goinfra/conf"
+	"github.com/ZenLiuCN/gofra/conf"
 	"github.com/golang-jwt/jwt/v5"
 )
 
