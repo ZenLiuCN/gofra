@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"github.com/ZenLiuCN/fn"
 	"github.com/ZenLiuCN/gofra/utils"
+	"github.com/jmoiron/sqlx"
 	"log/slog"
 	"time"
 )
@@ -291,4 +292,36 @@ type Versioned struct {
 }
 type SoftRemoved struct {
 	Removed bool `db:"removed"`
+}
+
+type SqlxExecutor struct {
+	*sqlx.DB
+}
+
+func (s SqlxExecutor) QueryOne(ctx context.Context, out any, sql string, args map[string]any) error {
+	r, err := s.NamedQueryContext(ctx, sql, args)
+	if err != nil {
+		return err
+	}
+	err = r.StructScan(out)
+	return err
+}
+
+func (s SqlxExecutor) Execute(ctx context.Context, q string, args map[string]any) (sql.Result, error) {
+	var r sql.Result
+	var err error
+	if args == nil {
+		r, err = s.ExecContext(ctx, q)
+	} else {
+		r, err = s.NamedExec(q, args)
+	}
+	return r, err
+}
+
+func (s SqlxExecutor) Close(ctx context.Context) bool {
+	err := s.DB.Close()
+	if err == nil {
+		return true
+	}
+	return false
 }

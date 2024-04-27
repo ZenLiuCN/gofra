@@ -129,7 +129,7 @@ var (
 	BCrypt   SecretCrypto = bcryptCrypto{}
 )
 
-func Validate(raw, hashed string) bool {
+func PasswordValidate(raw, hashed string) bool {
 	if strings.HasPrefix(hashed, "$a2id$") {
 		return Argon2id.Validate(raw, hashed)
 	} else {
@@ -137,10 +137,43 @@ func Validate(raw, hashed string) bool {
 	}
 }
 
-func TOTP(i, code string) bool {
-	if strings.HasPrefix(i, "otpauth://") {
-		if k, err := otp.NewKeyFromURL(i); err != nil {
-			return totp.Validate(code, i)
+func TotpGenerate(opts totp.GenerateOpts) (string, error) {
+	v, err := totp.Generate(opts)
+	if err != nil {
+		return "", err
+	}
+	return v.URL(), err
+}
+func BcryptHash(raw string, cost int) string {
+	return BCrypt.Hash(raw, cost)
+}
+func Argon2Hash(raw string, opt *Argon2Argument) string {
+	ag := Argon2Argument{}
+	if opt != nil {
+		ag = *opt
+	}
+	if ag.Memory == 0 {
+		ag.Memory = DefaultArgon2Argument.Memory
+	}
+	if ag.Iterations == 0 {
+		ag.Iterations = DefaultArgon2Argument.Iterations
+	}
+	if ag.Parallelism == 0 {
+		ag.Parallelism = DefaultArgon2Argument.Parallelism
+	}
+	if ag.SaltLength == 0 {
+		ag.SaltLength = DefaultArgon2Argument.SaltLength
+	}
+	if ag.KeyLength == 0 {
+		ag.KeyLength = DefaultArgon2Argument.KeyLength
+	}
+
+	return Argon2id.Hash(raw, ag)
+}
+func TotpValidate(code, def string) bool {
+	if strings.HasPrefix(def, "otpauth://") {
+		if k, err := otp.NewKeyFromURL(def); err != nil {
+			return totp.Validate(code, def)
 		} else if v, err := totp.ValidateCustom(code, k.Secret(), time.Now(), totp.ValidateOpts{
 			Period:    uint(k.Period()),
 			Skew:      1.,
@@ -152,5 +185,25 @@ func TOTP(i, code string) bool {
 			return v
 		}
 	}
-	return totp.Validate(code, i)
+	return totp.Validate(code, def)
+}
+func TotpCode(def string) string {
+	if strings.HasPrefix(def, "otpauth://") {
+		if k, err := otp.NewKeyFromURL(def); err != nil {
+			panic(err)
+		} else if v, err := totp.GenerateCodeCustom(k.Secret(), time.Now(), totp.ValidateOpts{
+			Period:    uint(k.Period()),
+			Skew:      1.,
+			Digits:    k.Digits(),
+			Algorithm: k.Algorithm(),
+		}); err != nil {
+			panic(err)
+		} else {
+			return v
+		}
+	} else if v, err := totp.GenerateCode(def, time.Now()); err != nil {
+		panic(err)
+	} else {
+		return v
+	}
 }
