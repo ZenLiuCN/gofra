@@ -138,7 +138,7 @@ func Validate(raw, hashed string) bool {
 }
 
 func TOTP(i, code string) bool {
-	if strings.HasPrefix(i, "totp://") {
+	if strings.HasPrefix(i, "otpauth://") {
 		if k, err := otp.NewKeyFromURL(i); err != nil {
 			return totp.Validate(code, i)
 		} else if v, err := totp.ValidateCustom(code, k.Secret(), time.Now(), totp.ValidateOpts{
