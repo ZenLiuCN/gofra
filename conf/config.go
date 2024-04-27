@@ -124,17 +124,63 @@ type (
 		HasPath(path string) bool
 		IsObject(path string) bool
 		IsArray(path string) bool
+
+		RequiredString(path string) string
+		RequiredInt32(path string) int32
+		RequiredBoolean(path string) bool
+		RequiredInt64(path string) int64
+
+		ExistsString(path string, act func(string))
+		ExistsBoolean(path string, act func(bool))
+		ExistsInt32(path string, act func(int32))
+		ExistsDuration(path string, act func(duration time.Duration))
+		ExistsFloat64(path string, act func(d float64))
+
+		GetTextMap(path string) map[string]string
 	}
 	config struct {
 		*hocon.Config
 	}
 )
 
-func NewConfig(c *hocon.Config) Config {
-	return &config{c}
+func (c config) GetTextMap(path string) (m map[string]string) {
+	if c.HasPath(path) {
+		v := c.GetValue(path)
+		if v.IsObject() {
+			m = make(map[string]string, len(v.GetObject().Items()))
+			for s, value := range v.GetObject().Items() {
+				m[s] = value.GetString()
+			}
+		}
+	}
+	return
 }
-func NewConfigOfValue(c *ho.HoconValue) Config {
-	return &config{Config: hocon.NewConfigFromRoot(ho.NewHoconRoot(c))}
+func (c config) RequiredInt64(path string) int64 {
+	return Required(path, c, c.GetInt64)
+}
+func (c config) RequiredBoolean(path string) bool {
+	return Required(path, c, c.GetBoolean)
+}
+func (c config) RequiredInt32(path string) int32 {
+	return Required(path, c, c.GetInt32)
+}
+func (c config) RequiredString(path string) string {
+	return Required(path, c, c.GetString)
+}
+func (c config) ExistsFloat64(path string, act func(d float64)) {
+	Exists(path, c, c.GetFloat64, act)
+}
+func (c config) ExistsDuration(path string, act func(duration time.Duration)) {
+	Exists(path, c, c.GetTimeDurationInfiniteNotAllowed, act)
+}
+func (c config) ExistsString(path string, act func(string)) {
+	Exists(path, c, c.GetString, act)
+}
+func (c config) ExistsBoolean(path string, act func(bool)) {
+	Exists(path, c, c.GetBoolean, act)
+}
+func (c config) ExistsInt32(path string, act func(int32)) {
+	Exists(path, c, c.GetInt32, act)
 }
 func (c config) GetStringMap(path string) map[string]Config {
 	if c.HasPath(path) {
@@ -183,6 +229,14 @@ func (c config) GetObjects(path string) (r []Config) {
 	}
 	return
 }
+
+func NewConfig(c *hocon.Config) Config {
+	return &config{c}
+}
+func NewConfigOfValue(c *ho.HoconValue) Config {
+	return &config{Config: hocon.NewConfigFromRoot(ho.NewHoconRoot(c))}
+}
+
 func Exists[T any](path string, c Config, get func(path string, def ...T) T, consume func(T)) {
 	if v, ok := c.(config); ok {
 		if v.GetNode(path) != nil {
