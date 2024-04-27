@@ -148,7 +148,7 @@ func (g *Generator) Process() {
 }
 func (g *Generator) Write() {
 	if g.out == "" {
-		g.out = "infra_entities.go"
+		g.out = "entities_gene.go"
 	}
 	if g.index == 0 {
 		g.index = modeler.FIELD_BUILTIN_MAX + 1
@@ -322,7 +322,11 @@ func (e *Entity) process() {
 
 func (e *Entity) write(g *Generator) {
 
-	getter := NewWriter().Import("github.com/ZenLiuCN/gofra/modeler").Import("fmt").Import("time").Import("database/sql")
+	getter := NewWriter().
+		Import("github.com/ZenLiuCN/gofra/modeler").
+		Import("fmt").
+		Import("time").
+		Import("database/sql")
 	setter := NewWriter()
 	naming := NewWriter()
 	getter.F(`
