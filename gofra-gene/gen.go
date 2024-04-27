@@ -232,7 +232,16 @@ func (e *Entity) foundSelectorType(x *ast.SelectorExpr) types.Object {
 	})].Scope().Lookup(x.Sel.Name)
 }
 func (e *Entity) findIndexType(x *ast.IndexExpr) types.Object {
-	return e.pkg.Pkg.TypesInfo.Defs[x.X.(*ast.Ident)]
+	switch i := x.X.(type) {
+	case *ast.Ident:
+		return e.pkg.Pkg.TypesInfo.Defs[i]
+	case *ast.IndexExpr:
+		return e.findIndexType(i)
+	case *ast.SelectorExpr:
+		return e.pkg.Pkg.TypesInfo.Defs[i.Sel]
+	default:
+		panic(fmt.Errorf("unresolved type %v", x))
+	}
 }
 func (e *Entity) process() {
 	for _, field := range e.structType.Fields.List {
