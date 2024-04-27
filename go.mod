@@ -1,6 +1,6 @@
 module github.com/ZenLiuCN/gofra
 
-go 1.21.4
+go 1.21
 
 require (
 	github.com/ZenLiuCN/fn v0.1.21
