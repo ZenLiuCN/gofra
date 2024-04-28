@@ -1,5 +1,9 @@
 package modeler
 
+import (
+	"strings"
+)
+
 type BaseSQLMaker[ID comparable, E Model[ID]] struct {
 	table string
 	conf
@@ -30,7 +34,7 @@ func (b BaseSQLMaker[ID, E]) Query() string {
 		q.WriteString(b.fields.RemovedName())
 		q.WriteString("= false")
 	}
-	return q.String()
+	return strings.Clone(q.String())
 }
 
 func (b BaseSQLMaker[ID, E]) Update(fields ...FIELD) string {
@@ -83,7 +87,7 @@ func (b BaseSQLMaker[ID, E]) Update(fields ...FIELD) string {
 		q.WriteString("= :")
 		q.WriteString(b.fields.VersionName())
 	}
-	return q.String()
+	return strings.Clone(q.String())
 }
 
 func (b BaseSQLMaker[ID, E]) Delete() string {
@@ -127,17 +131,17 @@ func (b BaseSQLMaker[ID, E]) Delete() string {
 		q.WriteString("= :")
 		q.WriteString(b.fields.VersionName())
 	}
-	return q.String()
+	return strings.Clone(q.String())
 }
 
 func (b BaseSQLMaker[ID, E]) Drop() string {
 	q := ByteBuffers.Get()
 	defer ByteBuffers.Put(q)
-	q.WriteString("DELETE ")
+	q.WriteString("DELETE FROM ")
 	q.WriteString(b.table)
 	q.WriteString(" WHERE ")
 	q.WriteString(b.fields.IdName())
 	q.WriteString("= :")
 	q.WriteString(b.fields.IdName())
-	return q.String()
+	return strings.Clone(q.String())
 }

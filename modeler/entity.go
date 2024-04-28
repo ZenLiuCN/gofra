@@ -298,22 +298,27 @@ type SqlxExecutor struct {
 	*sqlx.DB
 }
 
-func (s SqlxExecutor) QueryOne(ctx context.Context, out any, sql string, args map[string]any) error {
-	r, err := s.NamedQueryContext(ctx, sql, args)
+func (s SqlxExecutor) QueryOne(ctx context.Context, out any, sql string, args map[string]any) (err error) {
+	var r *sqlx.Rows
+	if len(args) == 0 {
+		r, err = s.QueryxContext(ctx, sql)
+	} else {
+		r, err = s.NamedQueryContext(ctx, sql, args)
+	}
 	if err != nil {
 		return err
 	}
-	err = r.StructScan(out)
+	if r.Next() {
+		err = r.StructScan(out)
+	}
 	return err
 }
 
-func (s SqlxExecutor) Execute(ctx context.Context, q string, args map[string]any) (sql.Result, error) {
-	var r sql.Result
-	var err error
-	if args == nil {
+func (s SqlxExecutor) Execute(ctx context.Context, q string, args map[string]any) (r sql.Result, err error) {
+	if len(args) == 0 {
 		r, err = s.ExecContext(ctx, q)
 	} else {
-		r, err = s.NamedExec(q, args)
+		r, err = s.NamedExecContext(ctx, q, args)
 	}
 	return r, err
 }
