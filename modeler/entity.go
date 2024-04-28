@@ -4,14 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"github.com/ZenLiuCN/fn"
-	"github.com/ZenLiuCN/gofra/utils"
 	"github.com/jmoiron/sqlx"
 	"log/slog"
 	"time"
 )
 
 var (
-	ByteBuffers = utils.NewByteBufferPool()
+	ByteBuffers = units.NewByteBufferPool()
 )
 
 type Model[ID comparable] interface {

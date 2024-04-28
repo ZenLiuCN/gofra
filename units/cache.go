@@ -1,13 +1,15 @@
-package utils
+package units
 
 import (
 	"container/list"
 	"fmt"
+	"io"
 	"sync"
 	"time"
 )
 
-//go:generate go install golang.org/x/tools/cmd/stringer
+// go:generate go install golang.org/x/tools/cmd/stringer
+
 //go:generate stringer -type MeasureUnit
 type MeasureUnit int
 
@@ -124,6 +126,7 @@ func (e *Entry[K, V]) Expire() int64 {
 
 type TTL[K comparable, V any] struct {
 	stop chan struct{}
+	n    int
 	tick int64
 	time time.Duration
 	kv   sync.Map
@@ -131,9 +134,11 @@ type TTL[K comparable, V any] struct {
 
 func (c *TTL[K, V]) addEntry(t *Entry[K, V]) {
 	c.kv.Store(t.key, t)
+	c.n += 1
 }
 func (c *TTL[K, V]) removeEntry(k K) {
 	c.kv.Delete(k)
+	c.n -= 1
 }
 func (c *TTL[K, V]) load(k K) (e *Entry[K, V], ok bool) {
 	var v any
@@ -147,6 +152,11 @@ func (c *TTL[K, V]) clear() {
 	c.kv.Range(func(key, value any) bool {
 		c.kv.Delete(key)
 		return true
+	})
+}
+func (c *TTL[K, V]) each(fn func(e *Entry[K, V]) bool) {
+	c.kv.Range(func(key, value any) bool {
+		return fn(value.(*Entry[K, V]))
 	})
 }
 func (c *TTL[K, V]) HouseKeeping() bool {
@@ -166,9 +176,13 @@ func (c *TTL[K, V]) Purify() {
 		item.expire -= c.tick
 		if item.expire <= 0 {
 			c.kv.Delete(key)
+			c.n -= 1
 		}
 		return true
 	})
+}
+func (c *TTL[K, V]) Count() int {
+	return c.n
 }
 func (c *TTL[K, V]) StartKeeping() {
 	if c.stop != nil {
@@ -196,6 +210,7 @@ func (c *TTL[K, V]) StartKeeping() {
 //region Cache
 
 type Cache[K comparable, V any] interface {
+	io.Closer
 	EmptyValue() V                      //the empty value
 	TimeToLive() time.Duration          // default time to live for entries
 	MeasureUnit() MeasureUnit           //underlying measure time unit
@@ -208,6 +223,8 @@ type Cache[K comparable, V any] interface {
 	HouseKeeping() bool                 // does housekeeping running
 	StopKeeping()                       //close housekeeping
 	StartKeeping()                      //start housekeeping
+	All() map[K]V                       //dump all entries
+	Count() int                         //current size
 }
 type cache[K comparable, V any] struct {
 	empty V
@@ -220,6 +237,14 @@ type cache[K comparable, V any] struct {
 	onAccess   func(*Entry[K, V]) //!! change the entry when access
 }
 
+func (c *cache[K, V]) All() (m map[K]V) {
+	m = make(map[K]V)
+	c.each(func(e *Entry[K, V]) bool {
+		m[e.key] = e.data
+		return true
+	})
+	return
+}
 func (c *cache[K, V]) Invalidate(k K) {
 	_, ok := c.load(k)
 	if ok {
@@ -296,6 +321,10 @@ func (c *cache[K, V]) Get(k K) (v V, ok bool) {
 		}
 	}
 	return e.data, ok
+}
+func (c *cache[K, V]) Close() error {
+	c.StopKeeping()
+	return nil
 }
 
 //endregion
