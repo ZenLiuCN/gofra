@@ -1,8 +1,9 @@
 package http
 
 import (
-	"github.com/ZenLiuCN/gofra/telemetry"
+	"github.com/ZenLiuCN/ote"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -11,9 +12,15 @@ import (
 // Spa [2]string{wwwRoot,indexFile}
 type Spa [2]string
 
+var (
+	scope ote.TelemetryProviderFn = func() (scope string, opt []trace.SpanStartOption) {
+		return "spa", nil
+	}
+)
+
 func (h Spa) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if t := telemetry.ByContext(r.Context()); t != nil {
-		cx, span := t.StartSpanWith("spa", r.Context(), attribute.String("folder", h[0]), attribute.String("index", h[1]))
+	if t, cx := ote.ByContext(r.Context(), scope); t != nil {
+		cx, span := t.StartSpan("spa", cx, attribute.String("folder", h[0]), attribute.String("index", h[1]))
 		defer func() {
 			defer span.End()
 			if r, ok := t.HandleRecover(recover()); ok {
