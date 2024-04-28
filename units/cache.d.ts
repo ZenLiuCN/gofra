@@ -9,15 +9,28 @@ export interface Cache<K, V> {
 
     putTTL(k: K, v: V, ttl: time.Duration)
 
-    get(k: K): { v: V, ok: boolean }
+    /**
+     * @return [value,exists]
+     */
+    get(k: K): (V | boolean)[]
 
     invalidate(k: K)
 
     invalidateAll()
 
+    all(): Entry<K, V>[]
+    count():number
     purify()
 
     close()
+}
+
+export interface Entry<K, V> {
+    key(): K
+
+    data(): V
+
+    goString(): string
 }
 
 //0 nanos 1 micros 2 mills 3 seconds

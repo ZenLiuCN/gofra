@@ -108,6 +108,10 @@ type Entry[K any, V any] struct {
 	expire int64
 }
 
+func (e *Entry[K, V]) GoString() string {
+	return fmt.Sprintf(`{"key":%v,"data":%v}`, e.key, e.data)
+}
+
 func (e *Entry[K, V]) Key() K {
 	return e.key
 }
@@ -223,7 +227,7 @@ type Cache[K comparable, V any] interface {
 	HouseKeeping() bool                 // does housekeeping running
 	StopKeeping()                       //close housekeeping
 	StartKeeping()                      //start housekeeping
-	All() map[K]V                       //dump all entries
+	All() []*Entry[K, V]                //dump all entries
 	Count() int                         //current size
 }
 type cache[K comparable, V any] struct {
@@ -237,10 +241,10 @@ type cache[K comparable, V any] struct {
 	onAccess   func(*Entry[K, V]) //!! change the entry when access
 }
 
-func (c *cache[K, V]) All() (m map[K]V) {
-	m = make(map[K]V)
+func (c *cache[K, V]) All() (m []*Entry[K, V]) {
+
 	c.each(func(e *Entry[K, V]) bool {
-		m[e.key] = e.data
+		m = append(m, &Entry[K, V]{key: e.key, data: e.data})
 		return true
 	})
 	return
