@@ -3,7 +3,7 @@ module github.com/ZenLiuCN/gofra
 go 1.21
 
 require (
-	github.com/ZenLiuCN/fn v0.1.21
+	github.com/ZenLiuCN/fn v0.1.22
 	github.com/go-akka/configuration v0.0.0-20200606091224-a002c0330665
 	github.com/golang-jwt/jwt/v5 v5.2.1
 	github.com/gorilla/mux v1.8.1
