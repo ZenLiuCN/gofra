@@ -52,9 +52,8 @@ const (
 //region LRU
 
 type LRU[K comparable] struct {
-	emptyKey K
-	ll       *list.List
-	m        map[K]*list.Element
+	ll *list.List
+	m  map[K]*list.Element
 }
 
 func (l *LRU[K]) Size() int {
@@ -76,14 +75,16 @@ func (l *LRU[K]) Accessed(k K) {
 func (l *LRU[K]) Oldest() K {
 	e := l.ll.Front()
 	if e == nil {
-		return l.emptyKey
+		var x K
+		return x
 	}
 	return e.Value.(K)
 }
 func (l *LRU[K]) Freshest() K {
 	e := l.ll.Back()
 	if e == nil {
-		return l.emptyKey
+		var x K
+		return x
 	}
 	return e.Value.(K)
 }
@@ -215,7 +216,6 @@ func (c *TTL[K, V]) StartKeeping() {
 
 type Cache[K comparable, V any] interface {
 	io.Closer
-	EmptyValue() V                      //the empty value
 	TimeToLive() time.Duration          // default time to live for entries
 	MeasureUnit() MeasureUnit           //underlying measure time unit
 	Put(k K, v V)                       //put value with default ttl
@@ -231,8 +231,7 @@ type Cache[K comparable, V any] interface {
 	Count() int                         //current size
 }
 type cache[K comparable, V any] struct {
-	empty V
-	lru   *LRU[K]
+	lru *LRU[K]
 	*TTL[K, V]
 	limit      int
 	timeToLive time.Duration
@@ -269,9 +268,6 @@ func (c *cache[K, V]) TimeToLive() time.Duration {
 }
 func (c *cache[K, V]) MeasureUnit() MeasureUnit {
 	return c.unit
-}
-func (c *cache[K, V]) EmptyValue() V {
-	return c.empty
 }
 func (c *cache[K, V]) Put(k K, v V) {
 	itm := &Entry[K, V]{
@@ -310,7 +306,8 @@ func (c *cache[K, V]) PutTTL(k K, v V, ttl time.Duration) {
 func (c *cache[K, V]) Get(k K) (v V, ok bool) {
 	e, ok := c.load(k)
 	if !ok {
-		return c.empty, false
+		var x V
+		return x, false
 	}
 	if c.lru != nil {
 		c.lru.Accessed(e.key)
@@ -355,8 +352,6 @@ type conf struct {
 }
 
 func NewCache[K comparable, V any](
-	emptyKey K,
-	emptyValue V,
 	freq time.Duration,
 	ttl time.Duration,
 	unit MeasureUnit,
@@ -367,7 +362,6 @@ func NewCache[K comparable, V any](
 		opt(c)
 	}
 	cc := new(cache[K, V])
-	cc.empty = emptyValue
 
 	cc.TTL = &TTL[K, V]{
 		time: freq,
@@ -375,9 +369,7 @@ func NewCache[K comparable, V any](
 		kv:   sync.Map{},
 	}
 	if c.max > 0 {
-		cc.lru = (&LRU[K]{
-			emptyKey: emptyKey,
-		}).Clear()
+		cc.lru = (&LRU[K]{}).Clear()
 		cc.limit = c.max
 	}
 	if c.onAccess != 0 {
