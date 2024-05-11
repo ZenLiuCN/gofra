@@ -176,7 +176,7 @@ func TotpValidate(code, def string) bool {
 			return totp.Validate(code, def)
 		} else if v, err := totp.ValidateCustom(code, k.Secret(), time.Now(), totp.ValidateOpts{
 			Period:    uint(k.Period()),
-			Skew:      1.,
+			Skew:      1,
 			Digits:    k.Digits(),
 			Algorithm: k.Algorithm(),
 		}); err != nil {
