@@ -4,7 +4,7 @@ go 1.21
 
 require (
 	github.com/Jeffail/gabs/v2 v2.7.0
-	github.com/ZenLiuCN/fn v0.1.27
+	github.com/ZenLiuCN/fn v0.1.30
 	github.com/ZenLiuCN/ote v0.0.0-20240430132224-5b67db016d95
 	github.com/go-akka/configuration v0.0.0-20200606091224-a002c0330665
 	github.com/golang-jwt/jwt/v5 v5.2.1
