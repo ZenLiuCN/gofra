@@ -88,10 +88,11 @@ func (c RouterConfigurer) WithCORS(cfg conf.Config) RouterConfigurer {
 }
 
 // WithSPA at root path
+// tpl: the routing prefix template
 // folder: the local directory contains all SPA files
 // index: the index file name
-func (c RouterConfigurer) WithSPA(folder, index string) RouterConfigurer {
-	c.PathPrefix("/").Handler(Spa([2]string{folder, index}))
+func (c RouterConfigurer) WithSPA(tpl, folder, index string) RouterConfigurer {
+	c.PathPrefix(tpl).Handler(Spa([2]string{folder, index})).Name("pages")
 	return c
 }
 
