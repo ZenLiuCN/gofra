@@ -92,7 +92,7 @@ func (s *BaseEntity[ID, E]) Refresh(ctx context.Context) bool {
 	if err == nil {
 		return true
 	}
-	cfg.Internal().Error("refresh entity", "error", err, "query", q, "parameter", m)
+	cfg.Internal().Errorf("refresh entity error:%s query:%s parameter:%+v", err, q, m)
 	return false
 }
 func (s *BaseEntity[ID, E]) DoWrite(f FIELD, v any) bool {
@@ -145,12 +145,12 @@ func (s *BaseEntity[ID, E]) Save(ctx context.Context) bool {
 			}
 			return true
 		} else if n != 1 {
-			cfg.Internal().Error("delete entity not effect one record", "query", q, "parameter", m)
+			cfg.Internal().Errorf("save entity not effect one record query:%s parameter:%+v", q, m)
 			return false
 		}
 
 	}
-	cfg.Internal().Error("save modification", "error", err, "query", q, "parameter", m)
+	cfg.Internal().Errorf("save modification error:%s query:%s parameter:%+v", err, q, m)
 	return false
 }
 func (s *BaseEntity[ID, E]) SaveBy(ctx context.Context, actor ID) bool {
@@ -180,12 +180,12 @@ func (s *BaseEntity[ID, E]) SaveBy(ctx context.Context, actor ID) bool {
 			}
 			return true
 		} else if n != 1 {
-			cfg.Internal().Error("delete entity not effect one record", "query", q, "parameter", m)
+			cfg.Internal().Errorf("save entity not effect one record query:%s parameter:%+v", q, m)
 			return false
 		}
 
 	}
-	cfg.Internal().Error("save modification", "error", err, "query", q, "parameter", m)
+	cfg.Internal().Errorf("save modification error:%s query:%s parameter:%+v", err, q, m)
 	return false
 }
 func (s *BaseEntity[ID, E]) Delete(ctx context.Context) bool {
@@ -204,11 +204,11 @@ func (s *BaseEntity[ID, E]) Delete(ctx context.Context) bool {
 			s.invalid = true
 			return true
 		} else if n != 1 {
-			cfg.Internal().Error("delete entity not effect one record", "query", q, "parameter", m)
+			cfg.Internal().Errorf("delete entity not effect one record query:%s parameter:%+v", q, m)
 			return false
 		}
 	}
-	cfg.Internal().Error("delete entity", "error", err, "query", q, "parameter", m)
+	cfg.Internal().Errorf("delete entity error: %s query:%s parameter:%+v", err, q, m)
 	return false
 }
 func (s *BaseEntity[ID, E]) DeleteBy(ctx context.Context, actor ID) bool {
@@ -230,11 +230,11 @@ func (s *BaseEntity[ID, E]) DeleteBy(ctx context.Context, actor ID) bool {
 			s.invalid = true
 			return true
 		} else if n != 1 {
-			cfg.Internal().Error("delete entity not effect one record", "query", q, "parameter", m)
+			cfg.Internal().Errorf("delete entity not effect one record query:%s parameter:%+v", q, m)
 			return false
 		}
 	}
-	cfg.Internal().Error("delete entity", "error", err, "query", q, "parameter", m)
+	cfg.Internal().Errorf("delete entity error:%s query:%s parameter:%+v", err, q, m)
 	return false
 }
 func (s *BaseEntity[ID, E]) Drop(ctx context.Context) bool {
@@ -250,11 +250,11 @@ func (s *BaseEntity[ID, E]) Drop(ctx context.Context) bool {
 			s.invalid = true
 			return true
 		} else if n != 1 {
-			cfg.Internal().Error("delete entity not effect one record", "query", q, "parameter", m)
+			cfg.Internal().Errorf("drop entity not effect one record query:%s parameter:%+v", q, m)
 			return false
 		}
 	}
-	cfg.Internal().Error("drop entity", "query", q, "parameter", m, "error", err)
+	cfg.Internal().Errorf("drop entity error:%s query:%s parameter:%+v", err, q, m)
 	return false
 }
 func (s *BaseEntity[ID, E]) Close(ctx context.Context) bool {
@@ -299,6 +299,9 @@ type SqlxExecutor struct {
 }
 
 func (s SqlxExecutor) QueryOne(ctx context.Context, out any, sql string, args map[string]any) (err error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	var r *sqlx.Rows
 	if len(args) == 0 {
 		r, err = s.QueryxContext(ctx, sql)
@@ -315,6 +318,9 @@ func (s SqlxExecutor) QueryOne(ctx context.Context, out any, sql string, args ma
 }
 
 func (s SqlxExecutor) Execute(ctx context.Context, q string, args map[string]any) (r sql.Result, err error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	if len(args) == 0 {
 		r, err = s.ExecContext(ctx, q)
 	} else {
@@ -328,5 +334,6 @@ func (s SqlxExecutor) Close(ctx context.Context) bool {
 	if err == nil {
 		return true
 	}
+	cfg.Internal().Errorf("shutdown datasource %s", err)
 	return false
 }

@@ -228,7 +228,7 @@ func FlushConfigurer(data []byte) (c Config, success bool) {
 	backupFile := fmt.Sprintf("%s.%d", file, time.Now().UnixMilli())
 	defer func() {
 		if r := recover(); r != nil {
-			Internal().Error("flush config fail", "error", r, "config", hex.EncodeToString(data))
+			Internal().Errorf("flush config fail: %s %s", r, hex.EncodeToString(data))
 			fn.Panic(os.Rename(backupFile, file))
 			success = false
 			c = ReloadConfigurer("")

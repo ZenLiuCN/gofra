@@ -142,15 +142,15 @@ func StartServer(r *mux.Router, c conf.Config, configure func(server *http.Serve
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
 		defer cancel()
 		if err := server.Shutdown(ctx); err != nil {
-			i.Error("http server shutting down", err)
+			i.Errorf("http server shutting down %+v", err)
 		} else {
 			i.Info("http server shutdown successfully")
 			close(shutdown)
 		}
 	}()
-	i.Info("http server listen", "address", server.Addr)
+	i.Infof("http server listen %s ", server.Addr)
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		i.Error("shutdown http server", "error", err)
+		i.Errorf("shutdown http server error %+v", err)
 	}
 	<-shutdown
 }

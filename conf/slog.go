@@ -10,6 +10,7 @@ import (
 	"math/big"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -78,121 +79,106 @@ func checkLogger() {
 		log := slog.New(slog.NewJSONHandler(handler, opt))
 		slog.SetDefault(log)
 	}
+	i = adaptor{slog.Default()}
 }
 
 type adaptor struct {
+	l *slog.Logger
 }
 
+func (a adaptor) log(ctx context.Context, level slog.Level, msg string, args ...any) {
+	if !a.l.Enabled(ctx, level) {
+		return
+	}
+	var pcs [1]uintptr
+	runtime.Callers(4, pcs[:])
+	record := slog.NewRecord(time.Now(), level, msg, pcs[0])
+	record.Add(args...)
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	_ = a.l.Handler().Handle(ctx, record)
+}
 func (a adaptor) Info(v ...any) {
 	if len(v) > 0 {
 		if f, ok := v[0].(string); ok {
-			slog.Info(f, v[1:]...)
+			a.log(nil, slog.LevelInfo, fmt.Sprintf(f, v[1:]...))
 			return
 		}
 	}
-	slog.Info("", v...)
-}
-
-func (a adaptor) Infoln(v ...any) {
-	if len(v) > 0 {
-		if f, ok := v[0].(string); ok {
-			slog.Info(f, v[1:]...)
-			return
-		}
-	}
-	slog.Info("", v...)
+	a.log(nil, slog.LevelInfo, "", v...)
 }
 
 func (a adaptor) Infof(format string, v ...any) {
-	slog.Info(fmt.Sprintf(format, v...))
+	a.log(nil, slog.LevelInfo, fmt.Sprintf(format, v...))
 }
 
 func (a adaptor) Warn(v ...any) {
 	if len(v) > 0 {
 		if f, ok := v[0].(string); ok {
-			slog.Warn(f, v[1:]...)
+			a.log(nil, slog.LevelWarn, f, v[1:]...)
 			return
 		}
 	}
-	slog.Warn("", v...)
-}
-
-func (a adaptor) Warnln(v ...any) {
-	if len(v) > 0 {
-		if f, ok := v[0].(string); ok {
-			slog.Warn(f, v[1:]...)
-			return
-		}
-	}
-	slog.Warn("", v...)
+	a.log(nil, slog.LevelWarn, "", v...)
 }
 
 func (a adaptor) Warnf(format string, v ...any) {
-	slog.Warn(fmt.Sprintf(format, v))
+	a.log(nil, slog.LevelWarn, fmt.Sprintf(format, v))
 }
 
 func (a adaptor) Error(v ...any) {
 	if len(v) > 0 {
 		if f, ok := v[0].(string); ok {
-			slog.Error(f, v[1:]...)
+			a.log(nil, slog.LevelError, f, v[1:]...)
 			return
 		}
 	}
-	slog.Error("", v...)
-}
-
-func (a adaptor) Errorln(v ...any) {
-	if len(v) > 0 {
-		if f, ok := v[0].(string); ok {
-			slog.Error(f, v[1:]...)
-			return
-		}
-	}
-	slog.Error("", v...)
+	a.log(nil, slog.LevelError, "", v...)
 }
 
 func (a adaptor) Errorf(format string, v ...any) {
-	slog.Error(format, v...)
+	a.log(nil, slog.LevelError, fmt.Sprintf(format, v...))
 }
 
 func (a adaptor) InfoContext(ctx context.Context, v ...any) {
 	if len(v) > 0 {
 		if f, ok := v[0].(string); ok {
-			slog.InfoContext(ctx, f, v[1:]...)
+			a.log(ctx, slog.LevelInfo, f, v[1:]...)
 			return
 		}
 	}
-	slog.InfoContext(ctx, "", v...)
+	a.log(ctx, slog.LevelInfo, "", v...)
 }
 
 func (a adaptor) InfoContextf(ctx context.Context, format string, v ...any) {
-	slog.InfoContext(ctx, fmt.Sprintf(format, v...))
+	a.log(ctx, slog.LevelInfo, fmt.Sprintf(format, v...))
 }
 
 func (a adaptor) WarnContext(ctx context.Context, v ...any) {
 	if len(v) > 0 {
 		if f, ok := v[0].(string); ok {
-			slog.WarnContext(ctx, f, v[1:]...)
+			a.log(ctx, slog.LevelWarn, f, v[1:]...)
 			return
 		}
 	}
-	slog.WarnContext(ctx, "", v...)
+	a.log(ctx, slog.LevelWarn, "", v...)
 }
 
 func (a adaptor) WarnContextf(ctx context.Context, format string, v ...any) {
-	slog.WarnContext(ctx, fmt.Sprintf(format, v...))
+	a.log(ctx, slog.LevelWarn, fmt.Sprintf(format, v...))
 }
 
 func (a adaptor) ErrorContext(ctx context.Context, v ...any) {
 	if len(v) > 0 {
 		if f, ok := v[0].(string); ok {
-			slog.ErrorContext(ctx, f, v[1:]...)
+			a.log(ctx, slog.LevelError, f, v[1:]...)
 			return
 		}
 	}
-	slog.ErrorContext(ctx, "", v...)
+	a.log(ctx, slog.LevelError, "", v...)
 }
 
 func (a adaptor) ErrorContextf(ctx context.Context, format string, v ...any) {
-	slog.ErrorContext(ctx, fmt.Sprintf(format, v...))
+	a.log(ctx, slog.LevelError, fmt.Sprintf(format, v...))
 }

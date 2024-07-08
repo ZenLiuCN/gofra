@@ -11,64 +11,51 @@ type adaptor struct {
 }
 
 func (w adaptor) Info(v ...any) {
-	glog.Info(v...)
-}
-
-func (w adaptor) Infoln(v ...any) {
-	glog.Infoln(v...)
+	glog.InfoDepth(1, v...)
 }
 
 func (w adaptor) Infof(format string, v ...any) {
-	glog.Infof(format, v...)
+	glog.InfoDepthf(1, format, v...)
 }
 
 func (w adaptor) Warn(v ...any) {
-	glog.Warning(v...)
-}
-
-func (w adaptor) Warnln(v ...any) {
-	glog.Warningln(v...)
+	glog.WarningDepth(1, v...)
 }
 
 func (w adaptor) Warnf(format string, v ...any) {
-	glog.Warningf(format, v...)
+	glog.WarningDepthf(1, format, v...)
 }
 
 func (w adaptor) Error(v ...any) {
-	glog.Error(v...)
-}
-
-func (w adaptor) Errorln(v ...any) {
-	glog.Errorln(v...)
+	glog.ErrorDepth(1, v...)
 }
 
 func (w adaptor) Errorf(format string, v ...any) {
-	glog.Errorf(format, v...)
+	glog.ErrorDepthf(1, format, v...)
 }
 
 func (w adaptor) InfoContext(ctx context.Context, v ...any) {
-	glog.InfoContext(ctx, v...)
+	glog.InfoContextDepth(ctx, 1, v...)
 }
 
 func (w adaptor) InfoContextf(ctx context.Context, format string, v ...any) {
-	glog.InfoContextf(ctx, format, v...)
+	glog.InfoContextDepthf(ctx, 1, format, v...)
 }
 
 func (w adaptor) WarnContext(ctx context.Context, v ...any) {
-	glog.WarningContext(ctx, v...)
+	glog.WarningContextDepth(ctx, 1, v...)
 }
 
 func (w adaptor) WarnContextf(ctx context.Context, format string, v ...any) {
-	glog.WarningContextf(ctx, format, v...)
+	glog.WarningContextDepthf(ctx, 1, format, v...)
 }
 
 func (w adaptor) ErrorContext(ctx context.Context, v ...any) {
-	glog.ErrorContext(ctx, v...)
+	glog.ErrorContextDepth(ctx, 1, v...)
 }
 
 func (w adaptor) ErrorContextf(ctx context.Context, format string, v ...any) {
-
-	glog.ErrorContextf(ctx, format, v...)
+	glog.ErrorContextDepthf(ctx, 1, format, v...)
 }
 
 func checkLogger() {
