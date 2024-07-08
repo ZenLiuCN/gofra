@@ -4,9 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"github.com/ZenLiuCN/fn"
+	cfg "github.com/ZenLiuCN/gofra/conf"
 	"github.com/ZenLiuCN/gofra/units"
 	"github.com/jmoiron/sqlx"
-	"log/slog"
 	"time"
 )
 
@@ -92,7 +92,7 @@ func (s *BaseEntity[ID, E]) Refresh(ctx context.Context) bool {
 	if err == nil {
 		return true
 	}
-	slog.With("refresh", slog.String("query", q), slog.Any("parameter", m)).Error("refresh entity", "error", err)
+	cfg.Internal().Error("refresh entity", "error", err, "query", q, "parameter", m)
 	return false
 }
 func (s *BaseEntity[ID, E]) DoWrite(f FIELD, v any) bool {
@@ -145,12 +145,12 @@ func (s *BaseEntity[ID, E]) Save(ctx context.Context) bool {
 			}
 			return true
 		} else if n != 1 {
-			slog.With("save", slog.String("query", q), slog.Any("parameter", m)).Error("delete entity not effect one record")
+			cfg.Internal().Error("delete entity not effect one record", "query", q, "parameter", m)
 			return false
 		}
 
 	}
-	slog.With("save", slog.String("query", q), slog.Any("parameter", m)).Error("save modification", "error", err)
+	cfg.Internal().Error("save modification", "error", err, "query", q, "parameter", m)
 	return false
 }
 func (s *BaseEntity[ID, E]) SaveBy(ctx context.Context, actor ID) bool {
@@ -180,12 +180,12 @@ func (s *BaseEntity[ID, E]) SaveBy(ctx context.Context, actor ID) bool {
 			}
 			return true
 		} else if n != 1 {
-			slog.With("save", slog.String("query", q), slog.Any("parameter", m)).Error("delete entity not effect one record")
+			cfg.Internal().Error("delete entity not effect one record", "query", q, "parameter", m)
 			return false
 		}
 
 	}
-	slog.With("save", slog.String("query", q), slog.Any("parameter", m)).Error("save modification", "error", err)
+	cfg.Internal().Error("save modification", "error", err, "query", q, "parameter", m)
 	return false
 }
 func (s *BaseEntity[ID, E]) Delete(ctx context.Context) bool {
@@ -204,11 +204,11 @@ func (s *BaseEntity[ID, E]) Delete(ctx context.Context) bool {
 			s.invalid = true
 			return true
 		} else if n != 1 {
-			slog.With("delete", slog.String("query", q), slog.Any("parameter", m)).Error("delete entity not effect one record")
+			cfg.Internal().Error("delete entity not effect one record", "query", q, "parameter", m)
 			return false
 		}
 	}
-	slog.With("delete", slog.String("query", q), slog.Any("parameter", m)).Error("delete entity", "error", err)
+	cfg.Internal().Error("delete entity", "error", err, "query", q, "parameter", m)
 	return false
 }
 func (s *BaseEntity[ID, E]) DeleteBy(ctx context.Context, actor ID) bool {
@@ -230,11 +230,11 @@ func (s *BaseEntity[ID, E]) DeleteBy(ctx context.Context, actor ID) bool {
 			s.invalid = true
 			return true
 		} else if n != 1 {
-			slog.With("delete", slog.String("query", q), slog.Any("parameter", m)).Error("delete entity not effect one record")
+			cfg.Internal().Error("delete entity not effect one record", "query", q, "parameter", m)
 			return false
 		}
 	}
-	slog.With("delete", slog.String("query", q), slog.Any("parameter", m)).Error("delete entity", "error", err)
+	cfg.Internal().Error("delete entity", "error", err, "query", q, "parameter", m)
 	return false
 }
 func (s *BaseEntity[ID, E]) Drop(ctx context.Context) bool {
@@ -250,11 +250,11 @@ func (s *BaseEntity[ID, E]) Drop(ctx context.Context) bool {
 			s.invalid = true
 			return true
 		} else if n != 1 {
-			slog.With("drop", slog.String("query", q), slog.Any("parameter", m)).Error("delete entity not effect one record")
+			cfg.Internal().Error("delete entity not effect one record", "query", q, "parameter", m)
 			return false
 		}
 	}
-	slog.With("drop", slog.String("query", q), slog.Any("parameter", m)).Error("drop entity", "error", err)
+	cfg.Internal().Error("drop entity", "query", q, "parameter", m, "error", err)
 	return false
 }
 func (s *BaseEntity[ID, E]) Close(ctx context.Context) bool {

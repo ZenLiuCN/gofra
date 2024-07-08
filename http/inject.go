@@ -8,7 +8,6 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux"
 	"go.opentelemetry.io/otel"
 	"log"
-	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -115,6 +114,9 @@ HOCON sample:
 	}
 */
 func StartServer(r *mux.Router, c conf.Config, configure func(server *http.Server), closerConsumer func(func())) {
+	if c == nil {
+		c = conf.Empty()
+	}
 	server := new(http.Server)
 	server.Addr = conf.OrElse("address", "0.0.0.0:8080", c, c.GetString)
 	server.Handler = r
@@ -126,6 +128,7 @@ func StartServer(r *mux.Router, c conf.Config, configure func(server *http.Serve
 	if configure != nil {
 		configure(server)
 	}
+	i := conf.Internal()
 	shutdown := make(chan struct{})
 	ch := make(chan os.Signal, 1)
 	closer := func() {
@@ -139,15 +142,15 @@ func StartServer(r *mux.Router, c conf.Config, configure func(server *http.Serve
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
 		defer cancel()
 		if err := server.Shutdown(ctx); err != nil {
-			slog.Error("http server shutting down", err)
+			i.Error("http server shutting down", err)
 		} else {
-			slog.Info("http server shutdown successfully")
+			i.Info("http server shutdown successfully")
 			close(shutdown)
 		}
 	}()
-	slog.Info("http server listen", "address", server.Addr)
+	i.Info("http server listen", "address", server.Addr)
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		slog.Error("shutdown http server", "error", err)
+		i.Error("shutdown http server", "error", err)
 	}
 	<-shutdown
 }

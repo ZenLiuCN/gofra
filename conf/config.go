@@ -6,7 +6,6 @@ import (
 	"github.com/ZenLiuCN/fn"
 	hocon "github.com/go-akka/configuration"
 	ho "github.com/go-akka/configuration/hocon"
-	"log/slog"
 	"math/big"
 	"os"
 	"time"
@@ -17,9 +16,9 @@ var (
 	conf *hocon.Config
 )
 
-// Initialize with config file and [slog].
+// Initialize with config file .
 //
-// HOCON sample for log config.
+// HOCON sample for log config that use slog , which compile with tag `slog`
 //
 //	log{
 //	 file: "path_of_log_file_with__name"
@@ -229,7 +228,7 @@ func FlushConfigurer(data []byte) (c Config, success bool) {
 	backupFile := fmt.Sprintf("%s.%d", file, time.Now().UnixMilli())
 	defer func() {
 		if r := recover(); r != nil {
-			slog.With(slog.String("config", hex.EncodeToString(data))).Error("flush config fail", "error", r)
+			Internal().Error("flush config fail", "error", r, "config", hex.EncodeToString(data))
 			fn.Panic(os.Rename(backupFile, file))
 			success = false
 			c = ReloadConfigurer("")
@@ -239,4 +238,8 @@ func FlushConfigurer(data []byte) (c Config, success bool) {
 	fn.Panic(os.Rename(file, backupFile))
 	fn.Panic(os.WriteFile(file, data, os.ModePerm))
 	return ReloadConfigurer(""), true
+}
+
+func Empty() Config {
+	return config{Config: hocon.NewConfigFromRoot(ho.NewHoconRoot(ho.NewHoconValue()))}
 }
