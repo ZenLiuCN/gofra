@@ -179,7 +179,7 @@ func new%[1]sEntity(tab string,configurer modeler.Configurer, s %[1]s,executor m
 			%[1]sFields,
 			executor,
 			modeler.NewBaseSQLMaker[%[2]s, %[1]s](tab, configurer, %[1]sFields),
-			func(ctx context.SpecContext) bool {
+			func(ctx context.Context) bool {
 				return true
 			},
 		)
