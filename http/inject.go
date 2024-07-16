@@ -34,7 +34,7 @@ func (c RouterConfigurer) WithTelemetry(service string, opts ...otelmux.Option) 
 }
 func (c RouterConfigurer) WithCORS(cfg conf.Config) RouterConfigurer {
 	c.Use(mux.CORSMethodMiddleware(c.Router))
-	var h, o string
+	var h, o,a string
 	if cfg != nil {
 		headers := cfg.GetStringList("cors.headers")
 		var b bytes.Buffer
@@ -57,6 +57,10 @@ func (c RouterConfigurer) WithCORS(cfg conf.Config) RouterConfigurer {
 		}
 		h = b.String()
 		b.Reset()
+		cc:=cfg.GetBoolean("cors.credentials",false)
+		if cc{
+			a="true"
+		}
 		origins := cfg.GetStringList("cors.origin")
 		if len(origins) != 0 {
 			for _, header := range origins {
@@ -77,7 +81,11 @@ func (c RouterConfigurer) WithCORS(cfg conf.Config) RouterConfigurer {
 	c.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			if req.Method == http.MethodOptions {
+				if a!=""{
+					w.Header().Set("Access-Control-Allow-Credentials", a)
+				}
 				w.Header().Set("Access-Control-Allow-Headers", h)
+				w.Header().Set("Access-Control-Expose-Header", h)
 				w.Header().Set("Access-Control-Allow-Origin", o)
 			}
 			next.ServeHTTP(w, req)
