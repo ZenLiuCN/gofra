@@ -225,7 +225,12 @@ type Entity struct {
 	Name   string
 	Fields []*Field
 	IdType string
+	uses   map[*types.Package]struct{}
 }
+
+var (
+	nothing = struct{}{}
+)
 
 func (e *Entity) foundSelectorType(x *ast.SelectorExpr) types.Object {
 	return e.pkg.Pkg.Types.Imports()[slices.IndexFunc(e.pkg.Pkg.Types.Imports(), func(p *types.Package) bool {
@@ -249,6 +254,12 @@ func (e *Entity) process() {
 		switch x := field.Type.(type) {
 		case *ast.Ident:
 			def := e.pkg.Pkg.TypesInfo.Defs[x]
+			if def == nil {
+				def = e.pkg.Pkg.TypesInfo.Uses[x]
+				if def.Pkg() == nil || def.Pkg().Path() == e.pkg.Pkg.PkgPath {
+					def = nil
+				}
+			}
 			e.pkg.Printf("%s %#+v\n", x, def)
 			if def == nil {
 				for _, name := range field.Names {
@@ -261,7 +272,19 @@ func (e *Entity) process() {
 					}).parseColumn())
 				}
 			} else {
-				panic(def)
+				if e.uses == nil {
+					e.uses = make(map[*types.Package]struct{})
+				}
+				e.uses[def.Pkg()] = nothing
+				for _, name := range field.Names {
+					e.Fields = append(e.Fields, (&Field{
+						Entity:    e,
+						Name:      name.Name,
+						Tags:      NewTagsOf(field.Tag),
+						TypeName:  def.Pkg().Name() + "." + x.Name,
+						IdentType: x,
+					}).parseColumn())
+				}
 			}
 		case *ast.IndexExpr:
 			def := e.findIndexType(x)
@@ -336,6 +359,9 @@ func (e *Entity) write(g *Generator) {
 		Import("github.com/ZenLiuCN/gofra/modeler").
 		Import("fmt").
 		Import("time")
+	for t := range e.uses {
+		getter.Import(t.Path())
+	}
 	setter := NewWriter()
 	naming := NewWriter()
 	getter.F(`

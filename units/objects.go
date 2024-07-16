@@ -57,16 +57,17 @@ func (j JsonObject) Scan(src any) error {
 	return json.Unmarshal(raw, &j)
 }
 
-// Json a json container which T should any type but not an unaddressable or unserializable type
+// Json a json container which T should any type but not an unaddressable or unserializable type.
+// !Important this type must use as pointer.
 type Json[T any] struct {
-	Val *T
+	V T
 }
 
 func (j *Json[T]) Value() (driver.Value, error) {
-	if j == nil || j.Val == nil {
+	if j == nil {
 		return nil, nil
 	}
-	return json.Marshal(j.Val)
+	return json.Marshal(j.V)
 }
 
 func (j *Json[T]) Scan(src any) error {
@@ -79,5 +80,5 @@ func (j *Json[T]) Scan(src any) error {
 	default:
 		return fmt.Errorf("type %T not supported by Scan", src)
 	}
-	return json.Unmarshal(raw, &j.Val)
+	return json.Unmarshal(raw, &j.V)
 }
