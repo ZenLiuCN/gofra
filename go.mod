@@ -6,8 +6,11 @@ require (
 	github.com/Jeffail/gabs/v2 v2.7.0
 	github.com/ZenLiuCN/fn v0.1.30
 	github.com/ZenLiuCN/ote v0.0.0-20240430132224-5b67db016d95
+	github.com/bombsimon/mysql-error-numbers v1.1.0
 	github.com/go-akka/configuration v0.0.0-20200606091224-a002c0330665
+	github.com/go-sql-driver/mysql v1.8.1
 	github.com/golang-jwt/jwt/v5 v5.2.1
+	github.com/golang/glog v1.2.0
 	github.com/gorilla/mux v1.8.1
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/pquerna/otp v1.4.0
@@ -22,6 +25,7 @@ require (
 )
 
 require (
+	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/boombuler/barcode v1.0.1-0.20190219062509-6c824513bacc // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
@@ -53,5 +57,4 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240401170217-c3f982113cda // indirect
 	google.golang.org/grpc v1.63.2 // indirect
 	google.golang.org/protobuf v1.33.0 // indirect
-	gotest.tools/v3 v3.5.1 // indirect
 )
