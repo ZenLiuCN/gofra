@@ -8,7 +8,7 @@ import (
 
 // Json a json container which T should any type but not an unaddressable or unserializable type.
 // !Important T type must not a pointer.
-type Json[T comparable] struct {
+type Json[T any] struct {
 	V     T    //the real value of T
 	Valid bool // dose this value is nil
 }
@@ -144,6 +144,52 @@ func (j *JsonArray) Scan(src any) error {
 func (j *JsonArray) UnmarshalJSON(bytes []byte) error {
 	if j.V == nil {
 		j.V = make([]any, 0)
+	}
+	return json.Unmarshal(bytes, &j.V)
+}
+
+type ArrayJson[T any] struct {
+	V []T
+}
+
+func (j ArrayJson[T]) Value() (driver.Value, error) {
+	if j.V == nil {
+		return nil, nil
+	}
+	if len(j.V) == 0 {
+		return "[]", nil
+	}
+	return json.Marshal(j.V)
+}
+func (j ArrayJson[T]) MarshalJSON() ([]byte, error) {
+	if j.V == nil {
+		return nil, nil
+	}
+	if len(j.V) == 0 {
+		return emptyArray, nil
+	}
+	return json.Marshal(j.V)
+}
+func (j *ArrayJson[T]) Scan(src any) error {
+	var raw []byte
+	switch src := src.(type) {
+	case string:
+		raw = []byte(src)
+	case []byte:
+		raw = src
+	case nil:
+		return nil
+	default:
+		return fmt.Errorf("type %T not supported by Scan", src)
+	}
+	if j.V == nil {
+		j.V = make([]T, 0)
+	}
+	return json.Unmarshal(raw, &j.V)
+}
+func (j *ArrayJson[T]) UnmarshalJSON(bytes []byte) error {
+	if j.V == nil {
+		j.V = make([]T, 0)
 	}
 	return json.Unmarshal(bytes, &j.V)
 }

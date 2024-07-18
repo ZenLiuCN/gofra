@@ -32,12 +32,8 @@ func (c RouterConfigurer) WithTelemetry(service string, opts ...otelmux.Option) 
 	c.Use(otelmux.Middleware(service, opts...))
 	return c
 }
-func (c RouterConfigurer) WithCORS(cfg conf.Config) RouterConfigurer {
-	if cfg == nil {
-		return c
-	}
-	c.Use(mux.CORSMethodMiddleware(c.Router))
-	var h, o, a string
+
+func parseCORS(cfg conf.Config) (h, o, a string) {
 	if cfg != nil {
 		headers := cfg.GetStringList("cors.headers")
 		var b bytes.Buffer
@@ -81,6 +77,14 @@ func (c RouterConfigurer) WithCORS(cfg conf.Config) RouterConfigurer {
 		o = "*"
 		h = "*"
 	}
+	return
+}
+func (c RouterConfigurer) WithCORS(cfg conf.Config) RouterConfigurer {
+	if cfg == nil {
+		return c
+	}
+	c.Use(mux.CORSMethodMiddleware(c.Router))
+	h, o, a := parseCORS(cfg)
 	c.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			/*			if req.Method == http.MethodOptions {
