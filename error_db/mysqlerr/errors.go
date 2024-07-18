@@ -1,4 +1,4 @@
-package mysql
+package mysqlerr
 
 import (
 	errno "github.com/bombsimon/mysql-error-numbers"
