@@ -5,7 +5,6 @@ import (
 	"context"
 	"github.com/ZenLiuCN/gofra/conf"
 	"io"
-	"log"
 	"net"
 	"net/http"
 	"strconv"
@@ -182,7 +181,6 @@ func (s *sse) send(msg *msg) (err error) {
 	if s.ch == nil {
 		return io.EOF
 	}
-	log.Printf("Send %+v", msg)
 	s.ch <- msg
 	return
 }
