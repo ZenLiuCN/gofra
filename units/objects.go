@@ -73,7 +73,7 @@ type JsonObject struct {
 
 func (j JsonObject) MarshalJSON() ([]byte, error) {
 	if j.V == nil {
-		return nil, nil
+		return emptyAny, nil
 	}
 	if len(j.V) == 0 {
 		return emptyObject, nil
@@ -131,7 +131,7 @@ func (j JsonArray) Value() (driver.Value, error) {
 }
 func (j JsonArray) MarshalJSON() ([]byte, error) {
 	if j.V == nil {
-		return nil, nil
+		return emptyAny, nil
 	}
 	if len(j.V) == 0 {
 		return emptyArray, nil
@@ -177,7 +177,7 @@ func (j ArrayJson[T]) Value() (driver.Value, error) {
 }
 func (j ArrayJson[T]) MarshalJSON() ([]byte, error) {
 	if j.V == nil {
-		return nil, nil
+		return emptyAny, nil
 	}
 	if len(j.V) == 0 {
 		return emptyArray, nil
