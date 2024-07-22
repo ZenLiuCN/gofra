@@ -1,4 +1,4 @@
-package http
+package htt
 
 import (
 	"github.com/ZenLiuCN/ote"

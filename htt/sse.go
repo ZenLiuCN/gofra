@@ -1,4 +1,4 @@
-package http
+package htt
 
 import (
 	"bytes"
@@ -93,9 +93,11 @@ func (s sse) SendEvent(event, data string) (err error) {
 
 // NewSSE create new SSE, should not send headers manually, this function will send Server-Send-Event headers.
 func NewSSE(w http.ResponseWriter) SSE {
+	w.Header().Add("Connection", "keep-alive")
+	w.Header().Add("Transfer-Encoding", "chunked")
 	w.Header().Add("Content-Type", "text/event-stream")
 	w.Header().Add("X-Accel-Buffering", "no")
-	w.Header().Add("Cache-Control", "no-cache")
+	w.Header().Add("Cache-Control", "no-cache, must-revalidate")
 	w.WriteHeader(200)
 	return &sse{w}
 }
