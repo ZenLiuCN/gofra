@@ -1,6 +1,7 @@
 package units
 
 import (
+	"bytes"
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
@@ -41,11 +42,24 @@ func (j *Json[T]) Scan(src any) error {
 	default:
 		return fmt.Errorf("type %T not supported by Scan", src)
 	}
-	j.Valid = true
+	defer func() {
+		if recover() == nil {
+			j.Valid = true
+		}
+	}()
 	return json.Unmarshal(raw, &j.V)
 }
-func (j *Json[T]) UnmarshalJSON(bytes []byte) error {
-	return json.Unmarshal(bytes, &j.V)
+func (j *Json[T]) UnmarshalJSON(bin []byte) error {
+	if len(bin) == 0 || bytes.Equal(bin, emptyAny) {
+		j.Valid = false
+		return nil
+	}
+	defer func() {
+		if recover() == nil {
+			j.Valid = true
+		}
+	}()
+	return json.Unmarshal(bin, &j.V)
 }
 
 var emptyObject = []byte{'{', '}'}
