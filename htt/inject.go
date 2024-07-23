@@ -117,8 +117,8 @@ func (c RouterConfigurer) WithSPA(tpl, folder, index string) RouterConfigurer {
 }
 
 // Launch see [StartServer]
-func (c RouterConfigurer) Launch(cfg conf.Config, configure func(server *http.Server), closerConsumer func(func())) {
-	StartServer(c.Router, cfg, configure, closerConsumer)
+func (c RouterConfigurer) Launch(name string, cfg conf.Config, configure func(server *http.Server), closerConsumer func(func())) {
+	StartServer(name, c.Router, cfg, configure, closerConsumer)
 }
 
 /*
@@ -134,7 +134,7 @@ HOCON sample:
 	keepAlive: false
 	}
 */
-func StartServer(r *mux.Router, c conf.Config, configure func(server *http.Server), closerConsumer func(func())) {
+func StartServer(name string, r *mux.Router, c conf.Config, configure func(server *http.Server), closerConsumer func(func())) {
 	if c == nil {
 		c = conf.Empty()
 	}
@@ -157,21 +157,21 @@ func StartServer(r *mux.Router, c conf.Config, configure func(server *http.Serve
 	}
 	closerConsumer(closer)
 	go func() {
-
 		signal.Notify(ch, syscall.SIGTERM, syscall.SIGINT)
 		<-ch
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
 		defer cancel()
 		if err := server.Shutdown(ctx); err != nil {
-			i.Errorf("http server shutting down %+v", err)
+			i.Errorf("http %s server shutting down %+v", name, err)
 		} else {
-			i.Info("http server shutdown successfully")
+			i.Infof("http %s server shutdown success", name)
 			close(shutdown)
 		}
+		signal.Stop(ch)
 	}()
-	i.Infof("http server listen %s ", server.Addr)
+	i.Infof("http %s server listen %s ", name, server.Addr)
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		i.Errorf("shutdown http server error %+v", err)
+		i.Errorf("shutdown http %s server error %+v", name, err)
 	}
 	<-shutdown
 }
