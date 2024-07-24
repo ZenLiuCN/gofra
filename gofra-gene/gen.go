@@ -347,16 +347,40 @@ func (e *Entity) process() {
 			panic(fmt.Errorf("unhandled type %T", p))
 		case *ast.ArrayType:
 			if id, ok := x.Elt.(*ast.Ident); ok {
-				for _, name := range field.Names {
-					e.Fields = append(e.Fields, (&Field{
-						Entity:    e,
-						Name:      name.Name,
-						Tags:      NewTagsOf(field.Tag),
-						TypeName:  fmt.Sprintf("[]%s", id.Name),
-						IdentType: id,
-					}).parseColumn())
+				def := e.pkg.Pkg.TypesInfo.Defs[id]
+				if def == nil {
+					def = e.pkg.Pkg.TypesInfo.Uses[id]
+					if def.Pkg() == nil || def.Pkg().Path() == e.pkg.Pkg.PkgPath {
+						def = nil
+					}
 				}
-				continue
+				if def == nil {
+					for _, name := range field.Names {
+						e.Fields = append(e.Fields, (&Field{
+							Entity:    e,
+							Name:      name.Name,
+							Tags:      NewTagsOf(field.Tag),
+							TypeName:  fmt.Sprintf("[]%s", id.Name),
+							IdentType: id,
+						}).parseColumn())
+					}
+					continue
+				} else {
+					if e.uses == nil {
+						e.uses = make(map[*types.Package]struct{})
+					}
+					e.uses[def.Pkg()] = nothing
+					for _, name := range field.Names {
+						e.Fields = append(e.Fields, (&Field{
+							Entity:    e,
+							Name:      name.Name,
+							Tags:      NewTagsOf(field.Tag),
+							TypeName:  fmt.Sprintf("[]%s.%s", def.Pkg().Name(), id.Name),
+							IdentType: id,
+						}).parseColumn())
+					}
+					continue
+				}
 			}
 			panic(fmt.Errorf("unhandled type %T", x))
 		case nil:
