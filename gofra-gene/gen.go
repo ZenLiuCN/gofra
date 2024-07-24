@@ -298,7 +298,7 @@ func (e *Entity) process() {
 						continue
 					}
 				}
-				panic(def)
+				panic(fmt.Errorf("unhandled type %+v", def))
 			} else {
 				for _, name := range field.Names {
 					e.Fields = append(e.Fields, (&Field{
@@ -311,7 +311,7 @@ func (e *Entity) process() {
 						TypeName: def.Name(),
 					}).parseColumn())
 				}
-				panic(e.Fields)
+				//panic(e.Fields)
 			}
 		case *ast.SelectorExpr:
 			p := e.foundSelectorType(x)
@@ -344,11 +344,25 @@ func (e *Entity) process() {
 					}
 				}
 			}
-			panic(p)
+			panic(fmt.Errorf("unhandled type %T", p))
+		case *ast.ArrayType:
+			if id, ok := x.Elt.(*ast.Ident); ok {
+				for _, name := range field.Names {
+					e.Fields = append(e.Fields, (&Field{
+						Entity:    e,
+						Name:      name.Name,
+						Tags:      NewTagsOf(field.Tag),
+						TypeName:  fmt.Sprintf("[]%s", id.Name),
+						IdentType: id,
+					}).parseColumn())
+				}
+				continue
+			}
+			panic(fmt.Errorf("unhandled type %T", x))
 		case nil:
 			continue
 		default:
-			panic(x)
+			panic(fmt.Errorf("unhandled type %T", x))
 		}
 	}
 }
