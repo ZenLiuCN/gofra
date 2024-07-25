@@ -121,8 +121,13 @@ func (c RouterConfigurer) Launch(name string, cfg conf.Config, configure func(se
 	StartServer(name, c.Router, cfg, configure, closerConsumer)
 }
 
+// LaunchContextual see [StartContextServer]
+func (c RouterConfigurer) LaunchContextual(name string, cfg conf.Config, timeout time.Duration, configure func(server *http.Server), closerConsumer func(func(context.Context))) {
+	StartContextServer(name, c.Router, cfg, timeout, configure, closerConsumer)
+}
+
 /*
-StartServer with mux.Router and [conf.Config].This method will block until [http.Server] is shutdown
+StartServer with mux.Router and [conf.Config].This function will block until [http.Server] is shutdown
 
 HOCON sample:
 
@@ -159,7 +164,7 @@ func StartServer(name string, r *mux.Router, c conf.Config, configure func(serve
 	go func() {
 		signal.Notify(ch, syscall.SIGTERM, syscall.SIGINT)
 		<-ch
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
 		if err := server.Shutdown(ctx); err != nil {
 			i.Errorf("http %s server shutting down %+v", name, err)
@@ -174,4 +179,83 @@ func StartServer(name string, r *mux.Router, c conf.Config, configure func(serve
 		i.Errorf("shutdown http %s server error %+v", name, err)
 	}
 	<-shutdown
+	close(ch)
+}
+
+/*
+StartContextServer with mux.Router and [conf.Config].This function will block
+until [http.Server] is shutdown. This function also support a context for close
+server.
+
+HOCON sample:
+
+	{
+	address: "0.0.0.0:8080" # default address to listen with
+	writeTimeout: 30s
+	readTimeout: 30s
+	idleTimeout: 30s
+	keepAlive: false
+	}
+*/
+func StartContextServer(name string, r *mux.Router, c conf.Config, timeout time.Duration, configure func(server *http.Server), closerConsumer func(func(ctx context.Context))) {
+	if c == nil {
+		c = conf.Empty()
+	}
+	server := new(http.Server)
+	server.Addr = conf.OrElse("address", "0.0.0.0:8080", c, c.GetString)
+	server.Handler = r
+	server.WriteTimeout = conf.OrElse("writeTimeout", time.Second*30, c, c.GetTimeDuration)
+	server.ReadTimeout = conf.OrElse("readTimeout", time.Second*30, c, c.GetTimeDuration)
+	server.IdleTimeout = conf.OrElse("idleTimeout", time.Second*60, c, c.GetTimeDuration)
+	server.ErrorLog = log.Default()
+	server.SetKeepAlivesEnabled(c.GetBoolean("keepAlive", false))
+	if configure != nil {
+		configure(server)
+	}
+	i := conf.Internal()
+	shutdown := make(chan struct{})
+	ch := make(chan os.Signal, 1)
+	ccx := make(chan context.Context, 1)
+	closer := func(ctx context.Context) {
+		ch <- syscall.SIGINT
+		ccx <- ctx
+	}
+	closerConsumer(closer)
+	go func() {
+		signal.Notify(ch, syscall.SIGTERM, syscall.SIGINT)
+		<-ch
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
+		var cx context.Context
+	loop:
+		for {
+			select {
+			case cx = <-ccx:
+				break loop
+			case <-ctx.Done():
+				break loop
+			}
+		}
+		if cx == nil {
+			var cc context.CancelFunc
+			ctx, cc = context.WithTimeout(context.Background(), timeout)
+			defer cc()
+		} else {
+			ctx = cx
+		}
+		if err := server.Shutdown(ctx); err != nil {
+			i.Errorf("http %s server shutting down %+v", name, err)
+		} else {
+			i.Infof("http %s server shutdown success", name)
+			close(shutdown)
+		}
+		signal.Stop(ch)
+	}()
+	i.Infof("http %s server listen %s ", name, server.Addr)
+	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		i.Errorf("shutdown http %s server error %+v", name, err)
+	}
+	<-shutdown
+	close(ch)
+	close(ccx)
 }
