@@ -373,7 +373,7 @@ func (e *Entity) process() {
 				}
 				if def == nil {
 					for _, name := range field.Names {
-						e.pkg.Printf("[%s] %v => %s", e.Name, name, id.Name)
+						e.pkg.Printf("[%s] %v => []%s", e.Name, name, id.Name)
 						e.Fields = append(e.Fields, (&Field{
 							Entity:    e,
 							Name:      name.Name,
@@ -389,7 +389,7 @@ func (e *Entity) process() {
 					}
 					e.uses[def.Pkg()] = nothing
 					for _, name := range field.Names {
-						e.pkg.Printf("[%s] %v => %s", e.Name, name, def.String())
+						e.pkg.Printf("[%s] %v => []%s", e.Name, name, def.String())
 						e.Fields = append(e.Fields, (&Field{
 							Entity:    e,
 							Name:      name.Name,
