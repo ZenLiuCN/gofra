@@ -260,9 +260,9 @@ func (e *Entity) process() {
 					def = nil
 				}
 			}
-			e.pkg.Printf("%s %#+v\n", x, def)
 			if def == nil {
 				for _, name := range field.Names {
+					e.pkg.Printf("[%s] %v => %s", e.Name, name, x.Name)
 					e.Fields = append(e.Fields, (&Field{
 						Entity:    e,
 						Name:      name.Name,
@@ -277,6 +277,7 @@ func (e *Entity) process() {
 				}
 				e.uses[def.Pkg()] = nothing
 				for _, name := range field.Names {
+					e.pkg.Printf("[%s] %v => %s", e.Name, name, def.String())
 					e.Fields = append(e.Fields, (&Field{
 						Entity:    e,
 						Name:      name.Name,
@@ -288,11 +289,11 @@ func (e *Entity) process() {
 			}
 		case *ast.IndexExpr:
 			def := e.findIndexType(x)
-			e.pkg.Printf("%#+v\n", def)
+
 			if len(field.Names) == 0 {
 				if v, ok := def.(*types.Var); ok && v.Embedded() && v.IsField() {
 					if tp, ok := v.Type().Underlying().(*types.Struct); ok {
-						e.pkg.Printf("%#+v", tp)
+						e.pkg.Printf("[%s] <Embedded> => %s", e.Name, tp.String())
 						f := recurringFields(e, tp, x, nil)
 						e.Fields = append(e.Fields, f...)
 						continue
@@ -301,6 +302,7 @@ func (e *Entity) process() {
 				panic(fmt.Errorf("unhandled type %+v", def))
 			} else {
 				for _, name := range field.Names {
+					e.pkg.Printf("[%s] %v => %s", e.Name, name, def.String())
 					e.Fields = append(e.Fields, (&Field{
 						Entity:   e,
 						Name:     name.Name,
@@ -315,19 +317,34 @@ func (e *Entity) process() {
 			}
 		case *ast.SelectorExpr:
 			p := e.foundSelectorType(x)
-			e.pkg.Printf("%#+v\n", p)
 			if v, ok := p.(*types.TypeName); ok {
 				if len(field.Names) == 0 {
 					if tp, ok := v.Type().Underlying().(*types.Struct); ok {
-						e.pkg.Printf("%#+v", tp)
+						e.pkg.Printf("[%s] <Embedded> => %s", e.Name, v.String())
 						f := recurringFields(e, tp, nil, x)
 						e.Fields = append(e.Fields, f...)
 						continue
 					}
 				} else {
 					if tp, ok := v.Type().Underlying().(*types.Struct); ok {
-						e.pkg.Printf("%#+v", tp)
 						for _, name := range field.Names {
+							e.pkg.Printf("[%s] %v => %s", e.Name, name, v.String())
+							e.Fields = append(e.Fields, (&Field{
+								Entity:       e,
+								Name:         name.Name,
+								Column:       "",
+								Index:        0,
+								Tags:         NewTagsOf(field.Tag),
+								VarField:     nil,
+								StructType:   tp,
+								TypeName:     x.X.(*ast.Ident).Name + "." + x.Sel.Name,
+								SelectorType: x,
+							}).parseColumn())
+						}
+						continue
+					} else if _, ok := v.Type().(*types.Named); ok {
+						for _, name := range field.Names {
+							e.pkg.Printf("[%s] %v => %s", e.Name, name, v.String())
 							e.Fields = append(e.Fields, (&Field{
 								Entity:       e,
 								Name:         name.Name,
@@ -356,6 +373,7 @@ func (e *Entity) process() {
 				}
 				if def == nil {
 					for _, name := range field.Names {
+						e.pkg.Printf("[%s] %v => %s", e.Name, name, id.Name)
 						e.Fields = append(e.Fields, (&Field{
 							Entity:    e,
 							Name:      name.Name,
@@ -371,6 +389,7 @@ func (e *Entity) process() {
 					}
 					e.uses[def.Pkg()] = nothing
 					for _, name := range field.Names {
+						e.pkg.Printf("[%s] %v => %s", e.Name, name, def.String())
 						e.Fields = append(e.Fields, (&Field{
 							Entity:    e,
 							Name:      name.Name,
