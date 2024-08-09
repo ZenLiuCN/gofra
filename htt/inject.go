@@ -86,21 +86,37 @@ func (c RouterConfigurer) WithCORS(cfg conf.Config) RouterConfigurer {
 	c.Use(mux.CORSMethodMiddleware(c.Router))
 	h, o, a := parseCORS(cfg)
 	c.Use(func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-			/*			if req.Method == http.MethodOptions {
-						if a!=""{
-							w.Header().Set("Access-Control-Allow-Credentials", a)
-						}
-						w.Header().Set("Access-Control-Allow-Headers", h)
-						w.Header().Set("Access-Control-Expose-Header", h)
-						w.Header().Set("Access-Control-Allow-Origin", o)
-					}*/
-			if a != "" {
-				w.Header().Set("Access-Control-Allow-Credentials", a)
+		var setter func(w http.ResponseWriter, req *http.Request)
+		if o == "*" {
+			setter = func(w http.ResponseWriter, req *http.Request) {
+				if a != "" {
+					w.Header().Set("Access-Control-Allow-Credentials", a)
+				}
+				var org = req.Header.Get("origin")
+				if org == "" {
+					var u = req.URL
+					org = u.Scheme + u.Host
+				}
+				w.Header().Set("Access-Control-Allow-Headers", h)
+				w.Header().Set("Access-Control-Expose-Header", h)
+				w.Header().Set("Access-Control-Allow-Origin", org)
 			}
-			w.Header().Set("Access-Control-Allow-Headers", h)
-			w.Header().Set("Access-Control-Expose-Header", h)
-			w.Header().Set("Access-Control-Allow-Origin", o)
+		} else {
+			setter = func(w http.ResponseWriter, req *http.Request) {
+				if a != "" {
+					w.Header().Set("Access-Control-Allow-Credentials", a)
+				}
+				w.Header().Set("Access-Control-Allow-Headers", h)
+				w.Header().Set("Access-Control-Expose-Header", h)
+				w.Header().Set("Access-Control-Allow-Origin", o)
+
+			}
+		}
+		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			setter(w, req)
+			if req.Method == http.MethodOptions {
+				return
+			}
 			next.ServeHTTP(w, req)
 		})
 	})

@@ -15,7 +15,7 @@ require (
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/pquerna/otp v1.4.0
 	github.com/urfave/cli/v2 v2.27.1
-	go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux v0.50.0
+	go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux v0.53.0
 	go.opentelemetry.io/otel v1.28.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.28.0
 	go.opentelemetry.io/otel/trace v1.28.0
