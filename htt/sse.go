@@ -27,6 +27,7 @@ type SSE interface {
 	WithOnClose(fn func()) SSE                //set on close hook to called once when Close is called. Only one hook can be set.
 }
 type sse struct {
+	debug   bool
 	ch      chan *msg
 	onClose func()
 	http.ResponseWriter
@@ -60,6 +61,7 @@ func (s *sse) Close() error {
 	s.ch = nil
 	if s.onClose != nil {
 		s.onClose()
+		s.onClose = nil
 	}
 	return nil
 }
@@ -101,11 +103,16 @@ func (s *sse) withoutContext() (err error) {
 		select {
 		case m, ok = <-s.ch:
 			if !ok {
-				conf.Internal().Warn("sse chan closed")
+				if s.debug {
+					conf.Internal().Warn("sse chan closed")
+				}
 				return
 			}
 			err = s.write(m, buf)
 			if err != nil {
+				if s.debug {
+					conf.Internal().Warnf("sse write error %s", err)
+				}
 				return
 			}
 			m = nil
@@ -169,15 +176,22 @@ func (s *sse) withContext(ctx context.Context) (err error) {
 	for {
 		select {
 		case <-ctx.Done():
-			conf.Internal().Warn("sse context closed")
+			if s.debug {
+				conf.Internal().Warn("sse context closed")
+			}
 			return
 		case m, ok = <-s.ch:
 			if !ok {
-				conf.Internal().Warn("sse chan closed")
+				if s.debug {
+					conf.Internal().Warn("sse chan closed")
+				}
 				return
 			}
 			err = s.write(m, buf)
 			if err != nil {
+				if s.debug {
+					conf.Internal().Warnf("sse write error %s", err)
+				}
 				return
 			}
 			m = nil
@@ -203,6 +217,9 @@ func (s *sse) SendEvent(event, data string) (err error) {
 
 // NewSSE create new SSE, should not send headers manually, this function will send Server-Send-Event headers.
 func NewSSE(w http.ResponseWriter, bufferSize ...int) (s SSE) {
+	return NewSSEDebug(false, w, bufferSize...)
+}
+func NewSSEDebug(debug bool, w http.ResponseWriter, bufferSize ...int) (s SSE) {
 	w.Header().Add("Connection", "keep-alive")
 	w.Header().Add("Transfer-Encoding", "chunked")
 	w.Header().Add("Content-Type", "text/event-stream")
@@ -213,11 +230,16 @@ func NewSSE(w http.ResponseWriter, bufferSize ...int) (s SSE) {
 	if len(bufferSize) > 0 && bufferSize[0] > 0 {
 		buf = bufferSize[0]
 	}
-	s = &sse{ch: make(chan *msg, buf), ResponseWriter: w}
+	s = &sse{debug: debug, ch: make(chan *msg, buf), ResponseWriter: w}
 	return
 }
 func NewSSEWithPing(w http.ResponseWriter, bufferSize ...int) (s SSE) {
 	s = NewSSE(w, bufferSize...)
+	_ = s.Ping()
+	return
+}
+func NewSSEDebugWithPing(debug bool, w http.ResponseWriter, bufferSize ...int) (s SSE) {
+	s = NewSSEDebug(debug, w, bufferSize...)
 	_ = s.Ping()
 	return
 }
