@@ -24,9 +24,11 @@ type SSE interface {
 	Retry(mills int) error                    // send retry to SSE client, returns [io.EOF] if already closed.
 	Raw() http.ResponseWriter                 // the internal response writer.
 	Await(ctx context.Context) error          // Await with optional context inside [http.Handler] , returns [io.EOF] if SSE already closed or the client closed connection.
+	WithOnClose(fn func()) SSE                //set on close hook to called once when Close is called. Only one hook can be set.
 }
 type sse struct {
-	ch chan *msg
+	ch      chan *msg
+	onClose func()
 	http.ResponseWriter
 }
 type msg struct {
@@ -46,12 +48,19 @@ var (
 	bPing  = []byte(": ping\n\n")
 )
 
+func (s *sse) WithOnClose(fn func()) SSE {
+	s.onClose = fn
+	return s
+}
 func (s *sse) Close() error {
 	if s.ch == nil {
 		return io.EOF
 	}
 	close(s.ch)
 	s.ch = nil
+	if s.onClose != nil {
+		s.onClose()
+	}
 	return nil
 }
 func (s *sse) Raw() http.ResponseWriter {
@@ -76,8 +85,7 @@ func (s *sse) Await(ctx context.Context) (err error) {
 		return io.EOF
 	}
 	defer func() {
-		close(s.ch)
-		s.ch = nil
+		_ = s.Close()
 	}()
 	if ctx != nil {
 		return s.withContext(ctx)
@@ -175,6 +183,7 @@ func (s *sse) withContext(ctx context.Context) (err error) {
 			m = nil
 		}
 	}
+
 }
 
 func (s *sse) send(msg *msg) (err error) {
@@ -204,7 +213,11 @@ func NewSSE(w http.ResponseWriter, bufferSize ...int) (s SSE) {
 	if len(bufferSize) > 0 && bufferSize[0] > 0 {
 		buf = bufferSize[0]
 	}
-	s = &sse{make(chan *msg, buf), w}
+	s = &sse{ch: make(chan *msg, buf), ResponseWriter: w}
+	return
+}
+func NewSSEWithPing(w http.ResponseWriter, bufferSize ...int) (s SSE) {
+	s = NewSSE(w, bufferSize...)
 	_ = s.Ping()
 	return
 }
