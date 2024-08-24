@@ -392,7 +392,7 @@ func (s *notifier) Await(ctx context.Context) error {
 		return ErrContextRequired
 	}
 	ctx, s.cc = context.WithCancel(ctx)
-	bins, errs := s.goRead(ctx)
+	bins, errs := s.asyncRead(ctx)
 	defer func() {
 		close(bins)
 		close(errs)
@@ -566,7 +566,7 @@ func chunkSplit(data []byte, atEOF bool) (int, []byte, error) {
 	}
 	return 0, nil, nil
 }
-func (s *notifier) goRead(ctx context.Context) (out chan []byte, err chan error) {
+func (s *notifier) asyncRead(ctx context.Context) (out chan []byte, err chan error) {
 	defer s.Response.Body.Close()
 	var sc = bufio.NewScanner(s.Response.Body)
 	sc.Buffer(make([]byte, 1024), int(s.dataBuf))
