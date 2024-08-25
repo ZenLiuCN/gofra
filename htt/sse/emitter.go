@@ -92,6 +92,18 @@ func (d *dto) simple() bool {
 func (d *dto) typed() bool {
 	return d.data != "" && d.id == "" && d.event != ""
 }
+func FillRequestHeader(w http.Header) {
+	w.Set("Connection", "keep-alive")
+	w.Set("Accept", "text/event-stream")
+	w.Set("Cache-Control", "no-cache")
+}
+func FillResponseHeader(w http.Header) {
+	w.Set("Connection", "keep-alive")
+	w.Set("Transfer-Encoding", "chunked")
+	w.Set("Content-Type", "text/event-stream")
+	w.Set("X-Accel-Buffering", "no")
+	w.Set("Cache-Control", "no-cache, must-revalidate")
+}
 
 //region emitter
 
@@ -111,11 +123,7 @@ func NewEmitter(optLog Logger, w http.ResponseWriter, buf ...int) Emitter {
 		x.buf = 1
 	}
 	x.log = optLog
-	w.Header().Add("Connection", "keep-alive")
-	w.Header().Add("Transfer-Encoding", "chunked")
-	w.Header().Add("Content-Type", "text/event-stream")
-	w.Header().Add("X-Accel-Buffering", "no")
-	w.Header().Add("Cache-Control", "no-cache, must-revalidate")
+	FillResponseHeader(w.Header())
 	w.WriteHeader(200)
 	return x
 }
@@ -318,11 +326,7 @@ func NewNotifier(optLog Logger, res *http.Response, buf int, dataBuf int) Notifi
 	x.dataBuf = uint32(clamp(512, 1024*8, dataBuf))
 	return x
 }
-func FillSSERequestHeader(w http.Header) {
-	w.Set("Connection", "keep-alive")
-	w.Set("Accept", "text/event-stream")
-	w.Set("Cache-Control", "no-cache")
-}
+
 func (s *notifier) Close() error {
 	if s.cc == nil {
 		return ErrClosed
