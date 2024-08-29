@@ -24,7 +24,7 @@ type (
 
 	// Task with one identity and one type and one value
 	Task[ID comparable, T comparable, V any] struct {
-		stop  atomic.Bool
+		Stop  atomic.Bool
 		Round atomic.Int64
 		Id    ID
 		Type  T
@@ -33,7 +33,7 @@ type (
 )
 
 func (t *Task[ID, T, V]) GoString() string {
-	return fmt.Sprintf("%v<%v>[%#+v](%t:%d)", t.Id, t.Type, t.Value, t.stop.Load(), t.Round.Load())
+	return fmt.Sprintf("%v<%v>[%#+v](%t:%d)", t.Id, t.Type, t.Value, t.Stop.Load(), t.Round.Load())
 }
 
 var (
@@ -115,7 +115,7 @@ func (s *slots[ID, T, V]) action(ctx context.Context, submit func(tasks map[T][]
 			m := s.GetMap()
 			for _, t := range act.v {
 				//! ignore stopped
-				if t.stop.Load() {
+				if t.Stop.Load() {
 					continue
 				}
 				m[t.Type] = append(m[t.Type], t)
@@ -221,7 +221,7 @@ func (s *slots[ID, T, V]) loop() {
 			s.wheel[p] = s.GetList()
 			for _, t := range v {
 				//! ignore stopped task
-				if t.stop.Load() {
+				if t.Stop.Load() {
 					continue
 				}
 				//! dec circle
@@ -246,7 +246,7 @@ func (s *slots[ID, T, V]) loop() {
 			s.tracef("[slots] unregister for executing tasks: %#+v", x)
 			for _, t := range x {
 				//! should be safe
-				//if t.stop.Load() {
+				//if t.Stop.Load() {
 				//	continue
 				//}
 				delete(s.registry, t.Id)
@@ -273,12 +273,12 @@ func (s *slots[ID, T, V]) loop() {
 				s.tracef("[slots] register tasks: %#+v", e.Tasks)
 			}
 			if e.Stop {
-				//! set stop mark only
+				//! set Stop mark only
 				for _, task := range e.Tasks {
-					task.stop.Store(true)
+					task.Stop.Store(true)
 					delete(s.registry, task.Id)
 				}
-				s.tracef("[slots] stop tasks: %#+v", e.Tasks)
+				s.tracef("[slots] Stop tasks: %#+v", e.Tasks)
 			} else {
 				//! add to slot
 				c := e.When / s.size //circles
@@ -377,7 +377,7 @@ func (s *Ring[ID, T, V]) RegisterTasks(when uint64, tasks ...*Task[ID, T, V]) (e
 		return
 	}
 	for _, task := range tasks { //! when user register a stopped task
-		task.stop.Store(false)
+		task.Stop.Store(false)
 	}
 	err = s.slots.register(tasks, when, RingRegisterMaxWait)
 	return
@@ -403,7 +403,7 @@ func (s *Ring[ID, T, V]) RecycleTasks(v []*Task[ID, T, V]) {
 	s.pool.PutList(v)
 }
 
-// Reset stop current execution and clean all data. Then restart again.
+// Reset Stop current execution and clean all data. Then restart again.
 func (s *Ring[ID, T, V]) Reset(ctx context.Context, ticker <-chan time.Time) {
 	s.cc()
 	ctx, s.cc = context.WithCancel(ctx)
