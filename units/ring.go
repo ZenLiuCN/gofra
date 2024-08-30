@@ -33,7 +33,7 @@ type (
 )
 
 func (t *Task[ID, T, V]) GoString() string {
-	return fmt.Sprintf("%v<%v>[%#+v](%t:%d)", t.Id, t.Type, t.Value, t.Stop.Load(), t.Round.Load())
+	return fmt.Sprintf("%v<%v>[%#+v](Stop:%t,Round:%d)", t.Id, t.Type, t.Value, t.Stop.Load(), t.Round.Load())
 }
 
 var (
@@ -167,10 +167,10 @@ func (s *slots[ID, T, V]) register(v []*Task[ID, T, V], w uint64, awaitMax time.
 		return ErrClosed
 	}
 	c := time.NewTimer(awaitMax)
+	defer c.Stop()
 	for {
 		select {
 		case s.event <- entry[ID, T, V]{Tasks: v, When: w}:
-			c.Stop()
 			return nil
 		case _ = <-c.C:
 			s.tracef("[slots] register tasks timeout")
@@ -184,10 +184,10 @@ func (s *slots[ID, T, V]) remove(v []*Task[ID, T, V], awaitMax time.Duration) (e
 		return ErrClosed
 	}
 	c := time.NewTimer(awaitMax)
+	defer c.Stop()
 	for {
 		select {
 		case s.event <- entry[ID, T, V]{Tasks: v, When: 0, Stop: true}:
-			c.Stop()
 			return nil
 		case _ = <-c.C:
 			s.tracef("[slots] remove tasks timeout")
@@ -222,6 +222,7 @@ func (s *slots[ID, T, V]) loop() {
 			for _, t := range v {
 				//! ignore stopped task
 				if t.Stop.Load() {
+					delete(s.registry, t.Id)
 					continue
 				}
 				//! dec circle
