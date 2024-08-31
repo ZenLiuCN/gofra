@@ -33,7 +33,7 @@ type (
 )
 
 func (t *Task[ID, T, V]) GoString() string {
-	return fmt.Sprintf("%v<%v>[%s](stop:%t,round:%d)", t.Id, t.Type, t.Value, t.Stop.Load(), t.Round.Load())
+	return fmt.Sprintf("%v<%v>[%#v](stop:%t,round:%d)", t.Id, t.Type, t.Value, t.Stop.Load(), t.Round.Load())
 }
 
 var (
