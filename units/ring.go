@@ -33,7 +33,7 @@ type (
 )
 
 func (t *Task[ID, T, V]) GoString() string {
-	return fmt.Sprintf("%v<%v>[%#+v](Stop:%t,Round:%d)", t.Id, t.Type, t.Value, t.Stop.Load(), t.Round.Load())
+	return fmt.Sprintf("%v<%v>[%s](stop:%t,round:%d)", t.Id, t.Type, t.Value, t.Stop.Load(), t.Round.Load())
 }
 
 var (
@@ -201,7 +201,7 @@ func (s *slots[ID, T, V]) loop() {
 		select {
 		case tick, ok := <-s.tick: //!! handle execute events
 			if !ok {
-				s.tracef("[slots] ticker closed")
+				s.tracef("ticker closed")
 				if s.execute != nil {
 					close(s.execute)
 					s.execute = nil
@@ -211,13 +211,13 @@ func (s *slots[ID, T, V]) loop() {
 			//! compute tasks
 			p := s.slot.Add(1) % s.size
 			if p == 0 {
-				s.tracef("[slots] reset slot")
+				s.tracef("[0] reset slot")
 				s.slot.Store(0)
 			}
 			v := s.wheel[p]  //! current tasks
 			n := s.GetList() //! next round
 			x := s.GetList() //! current execute
-			s.tracef("[slots] scheduled tasks: %#+v", v)
+			s.tracef("[%d] scheduled tasks: %+v", p, v)
 			s.wheel[p] = s.GetList()
 			for _, t := range v {
 				//! ignore stopped task
@@ -234,25 +234,21 @@ func (s *slots[ID, T, V]) loop() {
 				}
 			}
 			if len(n) > 0 {
-				s.tracef("[slots] pushback tasks: %#+v", n)
+				s.tracef("[%d] pushback tasks: %+v", p, n)
 				s.wheel[p] = append(s.wheel[p], n...)
 			}
 			s.PutList(n)
 			s.PutList(v)
 			if len(x) == 0 {
-				s.tracef("[slots] ignore empty tasks")
+				s.tracef("[%d] ignore empty tasks", p)
 				s.PutList(x)
 				continue
 			}
-			s.tracef("[slots] unregister for executing tasks: %#+v", x)
+			s.tracef("[%d] unregister for executing tasks: %+v", p, x)
 			for _, t := range x {
-				//! should be safe
-				//if t.Stop.Load() {
-				//	continue
-				//}
 				delete(s.registry, t.Id)
 			}
-			s.tracef("[slots] submit actions from tasks: %#+v", x)
+			s.tracef("[%d] submit actions from tasks: %+v", x)
 			//! submit tasks
 			s.execute <- action[ID, T, V]{x, tick}
 		case e, ok := <-s.event: //!! handle register changes
@@ -267,11 +263,11 @@ func (s *slots[ID, T, V]) loop() {
 				//! register new tasks
 				for _, task := range e.Tasks {
 					if old, exist := s.registry[task.Id]; exist {
-						s.tracef("[slots] conflict task: %#+v", old)
+						s.tracef("conflict task: %+v", old)
 					}
 					s.registry[task.Id] = task
 				}
-				s.tracef("[slots] register tasks: %#+v", e.Tasks)
+				s.tracef(" register tasks: %+v", e.Tasks)
 			}
 			if e.Stop {
 				//! set Stop mark only
@@ -279,7 +275,7 @@ func (s *slots[ID, T, V]) loop() {
 					task.Stop.Store(true)
 					delete(s.registry, task.Id)
 				}
-				s.tracef("[slots] Stop tasks: %#+v", e.Tasks)
+				s.tracef("Stop tasks: %+v", e.Tasks)
 			} else {
 				//! add to slot
 				c := e.When / s.size //circles
@@ -289,7 +285,7 @@ func (s *slots[ID, T, V]) loop() {
 						task.Round.Store(int64(c))
 					}
 				}
-				s.tracef("[slots] schedule tasks: [%d:%d] %#v", c, p, e.Tasks)
+				s.tracef(" schedule tasks: [%d:%d] %+v", c, p, e.Tasks)
 				s.wheel[p] = append(s.wheel[p], e.Tasks...)
 			}
 		}
