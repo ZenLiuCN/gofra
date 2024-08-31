@@ -109,26 +109,27 @@ func (s *slots[ID, T, V]) action(ctx context.Context, submit func(tasks map[T][]
 		select {
 		case act, ok := <-s.execute:
 			if !ok {
-				s.tracef("[slots] execute chan closed")
+				s.tracef("execute chan closed")
 				return
 			}
 			m := s.GetMap()
 			for _, t := range act.v {
 				//! ignore stopped
 				if t.Stop.Load() {
+					s.tracef("skip stopped action: %#v", t)
 					continue
 				}
 				m[t.Type] = append(m[t.Type], t)
 			}
 			if len(m) == 0 {
 				s.PutMap(m)
-				s.tracef("[slots] skip empty actions")
+				s.tracef("skip empty actions")
 				continue
 			}
-			s.tracef("[slots] submit actions: %#+v", m)
+			s.tracef(" submit actions: %#+v", m)
 			submit(m, act.t)
 		case <-ctx.Done():
-			s.tracef("[slots] context shutdown")
+			s.tracef("context shutdown")
 			//! not check
 			close(s.event)
 			s.event = nil
@@ -173,7 +174,7 @@ func (s *slots[ID, T, V]) register(v []*Task[ID, T, V], w uint64, awaitMax time.
 		case s.event <- entry[ID, T, V]{Tasks: v, When: w}:
 			return nil
 		case _ = <-c.C:
-			s.tracef("[slots] register tasks timeout")
+			s.tracef("register tasks timeout")
 			return ErrBusy
 		default:
 		}
@@ -190,7 +191,7 @@ func (s *slots[ID, T, V]) remove(v []*Task[ID, T, V], awaitMax time.Duration) (e
 		case s.event <- entry[ID, T, V]{Tasks: v, When: 0, Stop: true}:
 			return nil
 		case _ = <-c.C:
-			s.tracef("[slots] remove tasks timeout")
+			s.tracef("remove tasks timeout")
 			return ErrBusy
 		default:
 		}
@@ -217,7 +218,7 @@ func (s *slots[ID, T, V]) loop() {
 			v := s.wheel[p]  //! current tasks
 			n := s.GetList() //! next round
 			x := s.GetList() //! current execute
-			s.tracef("[%d] scheduled tasks: %+v", p, v)
+			s.tracef("[%d] scheduled tasks: %#+v", p, v)
 			s.wheel[p] = s.GetList()
 			for _, t := range v {
 				//! ignore stopped task
@@ -234,7 +235,7 @@ func (s *slots[ID, T, V]) loop() {
 				}
 			}
 			if len(n) > 0 {
-				s.tracef("[%d] pushback tasks: %+v", p, n)
+				s.tracef("[%d] pushback tasks: %#+v", p, n)
 				s.wheel[p] = append(s.wheel[p], n...)
 			}
 			s.PutList(n)
@@ -244,11 +245,11 @@ func (s *slots[ID, T, V]) loop() {
 				s.PutList(x)
 				continue
 			}
-			s.tracef("[%d] unregister for executing tasks: %+v", p, x)
+			s.tracef("[%d] unregister for executing tasks: %#+v", p, x)
 			for _, t := range x {
 				delete(s.registry, t.Id)
 			}
-			s.tracef("[%d] submit actions from tasks: %+v", x)
+			s.tracef("[%d] submit actions from tasks: %#+v", x)
 			//! submit tasks
 			s.execute <- action[ID, T, V]{x, tick}
 		case e, ok := <-s.event: //!! handle register changes
@@ -263,11 +264,11 @@ func (s *slots[ID, T, V]) loop() {
 				//! register new tasks
 				for _, task := range e.Tasks {
 					if old, exist := s.registry[task.Id]; exist {
-						s.tracef("conflict task: %+v", old)
+						s.tracef("conflict task: %#+v", old)
 					}
 					s.registry[task.Id] = task
 				}
-				s.tracef(" register tasks: %+v", e.Tasks)
+				s.tracef(" register tasks: %#+v", e.Tasks)
 			}
 			if e.Stop {
 				//! set Stop mark only
@@ -275,7 +276,7 @@ func (s *slots[ID, T, V]) loop() {
 					task.Stop.Store(true)
 					delete(s.registry, task.Id)
 				}
-				s.tracef("Stop tasks: %+v", e.Tasks)
+				s.tracef("Stop tasks: %#+v", e.Tasks)
 			} else {
 				//! add to slot
 				c := e.When / s.size //circles
@@ -285,7 +286,7 @@ func (s *slots[ID, T, V]) loop() {
 						task.Round.Store(int64(c))
 					}
 				}
-				s.tracef(" schedule tasks: [%d:%d] %+v", c, p, e.Tasks)
+				s.tracef(" schedule tasks: [%d:%d] %#+v", c, p, e.Tasks)
 				s.wheel[p] = append(s.wheel[p], e.Tasks...)
 			}
 		}
