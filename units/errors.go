@@ -2,6 +2,7 @@ package units
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"time"
 )
@@ -42,7 +43,8 @@ func JsonSafeHandleFunc(h http.HandlerFunc, logger func(format string, args ...a
 		defer func() {
 			switch e := recover().(type) {
 			case error:
-				if ex, ok := e.(ResponseError); ok {
+				var ex ResponseError
+				if errors.As(e, &ex) {
 					switch ex.Code {
 					case http.StatusNotFound, http.StatusBadRequest, http.StatusUnauthorized, http.StatusInternalServerError:
 						w.WriteHeader(ex.Code)
@@ -51,13 +53,6 @@ func JsonSafeHandleFunc(h http.HandlerFunc, logger func(format string, args ...a
 						Timestamp: time.Now().Unix(),
 						Code:      ex.Code,
 						Message:   ex.Message,
-					})
-				} else {
-					w.WriteHeader(http.StatusInternalServerError)
-					_ = json.NewEncoder(w).Encode(JsonError{
-						Timestamp: time.Now().Unix(),
-						Code:      500,
-						Message:   "",
 					})
 				}
 				logger("handle %s", r.RequestURI, e)
@@ -82,11 +77,10 @@ func TextSafeHandleFunc(h http.HandlerFunc, logger func(format string, args ...a
 		defer func() {
 			switch e := recover().(type) {
 			case error:
-				if ex, ok := e.(ResponseError); ok {
+				var ex ResponseError
+				if errors.As(e, &ex) {
 					w.WriteHeader(ex.Code)
 					_, _ = w.Write([]byte(ex.Message))
-				} else {
-					w.WriteHeader(http.StatusInternalServerError)
 				}
 				logger("handle %s %#+v", r.RequestURI, e)
 			case nil:
