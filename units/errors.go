@@ -88,11 +88,11 @@ func TextSafeHandleFunc(h http.HandlerFunc, logger func(format string, args ...a
 				} else {
 					w.WriteHeader(http.StatusInternalServerError)
 				}
-				logger("handle %s", r.RequestURI, e)
+				logger("handle %s %#+v", r.RequestURI, e)
 			case nil:
 			default:
 				w.WriteHeader(http.StatusInternalServerError)
-				logger("handle %s", r.RequestURI, e)
+				logger("handle %s %#+v", r.RequestURI, e)
 			}
 		}()
 		h(w, r)
