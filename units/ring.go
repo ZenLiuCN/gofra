@@ -6,6 +6,7 @@ import (
 	"fmt"
 	conf2 "github.com/ZenLiuCN/gofra/conf"
 	"golang.org/x/exp/maps"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -399,6 +400,23 @@ func (s *Ring[ID, T, V]) Remove(id ...ID) (err error) {
 }
 func (s *Ring[ID, T, V]) RecycleTasks(v []*Task[ID, T, V]) {
 	s.pool.PutList(v)
+}
+func (s *Ring[ID, T, V]) Inspect() (reg map[string]string, wheel map[string]string) {
+	var m = make(map[string]string)
+	var x = maps.Clone(s.registry)
+	for i, t := range x {
+		m[fmt.Sprintf("%v", i)] = fmt.Sprintf("%v", t)
+	}
+	var w = make(map[string]string)
+	s.Lock()
+	var ss = slices.Clone(s.wheel)
+	s.Unlock()
+	for x, i := range ss {
+		for y, t := range i {
+			w[fmt.Sprintf("%d:%d", x, y)] = fmt.Sprintf("%v", t)
+		}
+	}
+	return m, w
 }
 
 // Reset Stop current execution and clean all data. Then restart again.
